@@ -7,7 +7,7 @@ Clustering, or community detection, is one of the most fundamental problems for 
 Implement and verify latency/precision tests for [Hollocou et al](https://hal.archives-ouvertes.fr/hal-01639506v1/document)'s one pass streaming graph clustering algorithm
 
 #### Model Assumptions
-Nodes tend to be connected within a community than across communities - thus, if edges are to arrive in random order, we would expect intra-community edges to arrive before inter-community edges 
+Nodes tend to be more connected (have more edges) within a community than across communities - thus, if edges are to arrive in random order, we would typically expect that intra-community edges would arrive before inter-community edges 
 
 Edges will be inserted into stream in a random order
 
@@ -27,8 +27,13 @@ Update corresponding dictionaries for degree, community of node, node's communit
 
 ### User Interface
 Visualize real time cluster evolution
+
+
 View analytics for each cluster
 ### Issues
+Because low community size is the criteria for adding a node to that community, and the algorithm assumes that every node belongs to a community , outliers would be incorrectly grouped into a community
+
+Also assumes community size is relatively even (because of the rule that chooses the community with the smaller member size for classifying an edge)
 
 This algorithm would not work well on clustering large graphs with loosely defined communities - the algorithm relies on the assumption that there are significantly more intra-community nodes than inter-community nodes
 
