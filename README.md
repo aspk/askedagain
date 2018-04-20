@@ -2,6 +2,8 @@
 Real-time community clustering analytics for Friendster's social network
 
 ### Details
+Clustering, or community detection, is one of the most fundamental problems for social network analysis. Dynamic estimation of clusters in large social networks allows for real time insights into the current state and current direction of graph evolution that would not be available otherwise. 
+
 Implement and verify latency/precision tests for [Hollocou et al](https://hal.archives-ouvertes.fr/hal-01639506v1/document)'s one pass streaming graph clustering algorithm
 
 #### Model Assumptions
@@ -18,9 +20,14 @@ For every incoming edge, calculate degrees of vertices and estimate community of
 
 Update corresponding dictionaries for degree, community of node, node's community size 
 
-Update metrics for cluster size, cluster relevance (connectivity percentile) for cluster metrics to SQL database
+##### Would like to also 
+* Log changes for each cluster in a changelog - e.g. 
 
+* Perform aggregation on the changelog provide analytics dashboard(cluster with most growth,largest cluster, smallest cluster) of cluster evolution over a sliding time window
 
+### User Interface
+Visualize real time cluster evolution
+View analytics for each cluster
 ### Issues
 
 This algorithm would not work well on clustering large graphs with loosely defined communities - the algorithm relies on the assumption that there are significantly more intra-community nodes than inter-community nodes
