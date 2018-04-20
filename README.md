@@ -31,7 +31,7 @@ Results are non-deterministic (shuffling the edge stream will generate different
 
 
 ## Pipeline
-![Pipeline](https://drive.google.com/file/d/1EI3eUr0CCawvrMC25ONyM-_fm9ucj32G/view?usp=sharing)
+![Pipeline](https://github.com/kellielu/friendster_communities)
 
 ## Dataset
 #### Overview
