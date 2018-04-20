@@ -31,7 +31,7 @@ Results are non-deterministic (shuffling the edge stream will generate different
 
 
 ## Pipeline
-![Pipeline](https://github.com/kellielu/friendster_communities/Pipeline.jpg)
+![Pipeline](https://raw.github.com/kellielu/friendster_communities/master/Pipeline.jpg)
 
 ## Dataset
 #### Overview
