@@ -4,7 +4,7 @@ Creating a distributed real-time duplicate question suggestion pipeline for Stac
 ### Motivation
 Duplicate questions on Stack Overflow present a conundrum for users looking to efficiently find answers to questions that may have already been answered. 
 
-Despite [recognizing this problem](https://stackoverflow.blog/2009/04/29/handling-duplicate-questions/), at the present, Stack Overflow still depends upon manual intervention on a small percentage of users - moderators users with high reputation - to identify and mark duplicate questions. 
+Despite [recognizing this problem](https://stackoverflow.blog/2009/04/29/handling-duplicate-questions/), at the present, Stack Overflow still depends upon manual intervention from a small percentage of users - moderators and users with high reputation - to identify and mark duplicate questions. 
 
 AskedAgain hopes to provide a streamlined, automatic pipeline to quickly identify potential duplicate questions to aid moderators and high reputation users in accelerating identification of duplicate questions. 
  
