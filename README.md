@@ -1,54 +1,40 @@
-### Overview
-Real-time community clustering analytics for Friendster's social network
+## AskedAgain
+Creating a distributed real-time duplicate question suggestion pipeline for Stack Overflow.
 
-### Details
-Clustering, or community detection, is one of the most fundamental problems for social network analysis. Dynamic estimation of clusters in large social networks allows for real time insights into the current state and current direction of graph evolution that would not be available otherwise. 
+### Motivation
+Duplicate questions on Stack Overflow present a conundrum for users looking to efficiently find answers to questions that may have already been answered. 
 
-Implement and verify latency/precision tests for [Hollocou et al](https://hal.archives-ouvertes.fr/hal-01639506v1/document)'s one pass streaming graph clustering algorithm
+Despite [recognizing this problem](https://stackoverflow.blog/2009/04/29/handling-duplicate-questions/), at the present, Stack Overflow still depends upon manual intervention - moderator intervention and users with high reputation - to identify and mark duplicate questions. 
 
-#### Model Assumptions
-Nodes tend to be more connected (have more edges) within a community than across communities - thus, if edges are to arrive in random order, we would typically expect that intra-community edges would arrive before inter-community edges 
+AskedAgain hopes to provide a streamlined, automatic pipeline to quickly identify potential duplicate questions to aid moderators and high reputation users in accelerating identification of duplicate questions. 
+ 
 
-Edges will be inserted into stream in a random order
+## Implementation Summary
+### Incoming Stack Overflow Questions
+* Normalize, clean, and tokenize the question in some way
+* Index incoming questions by tag (i.e. Javascript, Python)
+* For each tag, use Min-Hashing and Locality Sensitive Hashing (Jaccard Similarity) to bucket similar questions
+* Use an additional similarity metric + feedback from flagged questions to determine potential duplicates
 
-Assigns a threshold for the connectivity of a node - this is relatively determined, which seems a bit questionable
-
-#### Streaming Model
-Input Stream: sequence of edge insertion and edge deletion events
-
-For every incoming edge, calculate degrees of vertices and estimate community of node according to a threshold
-
-Update corresponding dictionaries for degree, community of node, node's community size 
-
-##### Would like to also 
-* Log changes for each cluster in a changelog - e.g. 
-
-* Perform aggregation on the changelog provide analytics dashboard(cluster with most growth,largest cluster, smallest cluster) of cluster evolution over a sliding time window
+### Incoming Flagging Events for Stack Overflow Questions
+* Separate flagging events into those flagged by ordinary users and those flagged by moderators/high reputation users (for simulation's sake)
+* Use flagged "duplicate" questions as a source of truth -> Normalize, clean, and tokenize this question
+* Obtain some kind of metric - to be determined at the moment - that offers insight for recognizing a duplicate questions ( this might be on the more machine learning side of things and add unnecessary complexity? still need to flesh this out)
+* Store these mysterious metrics in Redis - make available for query by the question pipeline
 
 ### User Interface
-Visualize real time cluster evolution
+* Allow duplicate questions to be sorted by tag
+* Display mini graphs for potential duplicate questions, where nodes represent questions and edges connect potential duplicate quesitons. 
+	* Edge weights represent the similarity between two questions, and the level of color saturation for a node represents the popularity(upvotes) of the question. 
+	* We would like to identify the root question, or original question (such that all the other questions would then be considered duplicate questions) by the usefulness of the question, which seems to be best captured by popularity
 
+### Futher thoughts
+* Stack Overflow provides the *related_post* attribute for every post, determined by their internal data processing pipeline (specifically [Elastic Search's "More Like This" query](https://meta.stackexchange.com/questions/20473/how-are-related-questions-selected)). This allows us to generate a graph where nodes represent questions and edges connect related questions - could this be used for anything?
 
-View analytics for each cluster
-### Issues
-Because low community size is the criteria for adding a node to that community, and the algorithm assumes that every node belongs to a community , outliers would be incorrectly grouped into a community
-
-Also assumes community size is relatively even (because of the rule that chooses the community with the smaller member size for classifying an edge)
-
-This algorithm would not work well on clustering large graphs with loosely defined communities - the algorithm relies on the assumption that there are significantly more intra-community nodes than inter-community nodes
-
-Results are non-deterministic (shuffling the edge stream will generate different results as the algorithm is highly dependent on order of edge processing).🤨 However, this might(?) be ok if our goal is to generate a real-time approximation of clusters in the graph
-
-* Verify precision of the one-pass algorithm by shuffling edges and observing community formation
-
-
-## Pipeline
-![Pipeline](https://raw.github.com/kellielu/friendster_communities/master/Pipeline.jpg)
-
-## Dataset
-#### Overview
-Stanford's [Friendster network dataset](https://snap.stanford.edu/data/com-Friendster.html) where nodes represent users and edges mark friendship
-
-Roughly 65 million nodes, 1.8 billion edges
-	 
-	
+### Architecture
+![Architecture](https://raw.github.com/kellielu/askedagain/master/imgs/AnnotatedArchitecture.jpg)
+### Dataset
+Stack Overflow data dump, available as a subset of the [Stack Exchange data dump](https://archive.org/details/stackexchange). 
+The Stack Overflow dataset is also accessible on [Google Big Query](https://cloud.google.com/bigquery/public-data/stackoverflow).
+## References
+[1] [Deduplication in massive clinical notes dataset](https://arxiv.org/pdf/1704.05617.pdf)
