@@ -18,8 +18,8 @@ AskedAgain hopes to provide a streamlined, automatic pipeline to quickly identif
 
 ### Incoming Flagging Events for Stack Overflow Questions
 * Separate flagging events into those flagged by ordinary users and those flagged by moderators/high reputation users (for simulation's sake)
-* Use flagged "duplicate" questions as a source of truth -> Normalize, clean, and tokenize this question
-* Obtain some kind of metric - to be determined at the moment - that offers insight for recognizing a duplicate questions ( this might be on the more machine learning side of things and add unnecessary complexity? still need to flesh this out)
+* Use flagged "duplicate" questions as an accuracy metric for correctly identified duplicate questions -> Normalize, clean, and tokenize this question
+* Obtain some kind of metric - to be determined at the moment, likely probability based - that offers insight for recognizing a duplicate questions ( this might be on the more machine learning side of things and add unnecessary complexity? still need to flesh this out)
 * Store these mysterious metrics in Redis - make available for query by the question pipeline
 
 ### User Interface
