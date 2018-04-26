@@ -1,0 +1,4 @@
+*_launch.sh
+*_workers.yml
+*_master.yml
+test/*

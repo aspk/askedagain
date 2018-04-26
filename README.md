@@ -2,7 +2,17 @@
 Creating a distributed real-time duplicate question suggestion pipeline for Stack Overflow.
 
 ### Motivation
-Duplicate questions on Stack Overflow present a conundrum for users looking to efficiently find answers to questions that may have already been answered. 
+[some overview of duplicate questions being a general problem - choose Stack Overflow as a case study because we have it's database]
+
+Duplicate questions on Stack Overflow:
+
+* Deteriorate the overall quality of Stack Overflow knowledge base 
+
+* Affect user experience 
+	* Regular Stack Overflow users often find digging through several duplicate questions an unenjoyable and messy experience
+	* Duplicate questions are often asked by new users, who may not receive answers to their questions since they are duplicate questions. Tagging a newly asked question as a duplicate question helps to 
+	
+	
 
 Despite [recognizing this problem](https://stackoverflow.blog/2009/04/29/handling-duplicate-questions/), at the present, Stack Overflow still depends upon manual intervention from a small percentage of users - moderators and users with high reputation - to identify and mark duplicate questions. 
 
@@ -20,6 +30,7 @@ AskedAgain hopes to provide a streamlined, automatic pipeline to quickly identif
 * Separate flagging events into those flagged by ordinary users and those flagged by moderators/high reputation users (for simulation's sake)
 * Use flagged "duplicate" questions as an accuracy metric for correctly identified duplicate questions -> Normalize, clean, and tokenize this question
 * Obtain some kind of metric - to be determined at the moment, likely probability based - that offers insight for recognizing a duplicate questions ( this might be on the more machine learning side of things and add unnecessary complexity? still need to flesh this out)
+* [ large body of NLP research which can be used to implement custom duplicate question recognition - for the sake of time I used this metric ] - many of these algorithsm rely on feedback to improve themselves. We've designed this as a feature in the data
 * Store these mysterious metrics in Redis - make available for query by the question pipeline
 
 ### User Interface
@@ -36,5 +47,11 @@ AskedAgain hopes to provide a streamlined, automatic pipeline to quickly identif
 ### Dataset
 Stack Overflow data dump, available as a subset of the [Stack Exchange data dump](https://archive.org/details/stackexchange). 
 The Stack Overflow dataset is also accessible on [Google Big Query](https://cloud.google.com/bigquery/public-data/stackoverflow).
+
+### Visualization
+[ graph of dataset size and performance, latency and thoroughput ]
+
+[ visual of user interface ]
+
 ## References
 [1] [Deduplication in massive clinical notes dataset](https://arxiv.org/pdf/1704.05617.pdf)
