@@ -26,12 +26,6 @@ AskedAgain hopes to provide a streamlined, automatic pipeline to quickly identif
 * For each tag, use Min-Hashing and Locality Sensitive Hashing (Jaccard Similarity) to bucket similar questions
 * Use an additional similarity metric + feedback from flagged questions to determine potential duplicates
 
-### Incoming Flagging Events for Stack Overflow Questions
-* Separate flagging events into those flagged by ordinary users and those flagged by moderators/high reputation users (for simulation's sake)
-* Use flagged "duplicate" questions as an accuracy metric for correctly identified duplicate questions -> Normalize, clean, and tokenize this question
-* Obtain some kind of metric - to be determined at the moment, likely probability based - that offers insight for recognizing a duplicate questions ( this might be on the more machine learning side of things and add unnecessary complexity? still need to flesh this out)
-* [ large body of NLP research which can be used to implement custom duplicate question recognition - for the sake of time I used this metric ] - many of these algorithsm rely on feedback to improve themselves. We've designed this as a feature in the data
-* Store these mysterious metrics in Redis - make available for query by the question pipeline
 
 ### User Interface
 * Allow duplicate questions to be sorted by tag
@@ -39,12 +33,22 @@ AskedAgain hopes to provide a streamlined, automatic pipeline to quickly identif
 	* Edge weights represent the similarity between two questions, and the level of color saturation for a node represents the popularity(upvotes) of the question. 
 	* We would like to identify the root question, or original question (such that all the other questions would then be considered duplicate questions) by the usefulness of the question, which seems to be best captured by popularity
 
-### Futher thoughts
+### Further thoughts to explore if time permits
+
+##### Graph Representation
 * Stack Overflow provides the *related_post* attribute for every post, determined by their internal data processing pipeline (specifically [Elastic Search's "More Like This" query](https://meta.stackexchange.com/questions/20473/how-are-related-questions-selected)). This allows us to generate a graph where nodes represent questions and edges connect related questions - could this be used for anything?
+
+##### Incoming Flagging Events for Stack Overflow Questions
+* Separate flagging events into those flagged by ordinary users and those flagged by moderators/high reputation users (for simulation's sake)
+* Use flagged "duplicate" questions as an accuracy metric for correctly identified duplicate questions -> Normalize, clean, and tokenize this question
+* Obtain some kind of metric - to be determined at the moment, likely probability based - that offers insight for recognizing a duplicate questions ( this might be on the more machine learning side of things and add unnecessary complexity? still need to flesh this out)
+* [ large body of NLP research which can be used to implement custom duplicate question recognition - for the sake of time I used this metric ] - many of these algorithsm rely on feedback to improve themselves. We've designed this as a feature in the data
+* Store these mysterious metrics in Redis - make available for query by the question pipeline
 
 ### Engineering Challenges
 * Implementing an online version of MinHash/LSH that is performant for a high thoroughput data stream
 *  Ensure the Spark batch job will not fall too behind the high thoroughput input stream
+
 
 ### Architecture
 ![Architecture](https://raw.github.com/kellielu/askedagain/master/imgs/Architecture.jpg)
