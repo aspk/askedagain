@@ -42,8 +42,12 @@ AskedAgain hopes to provide a streamlined, automatic pipeline to quickly identif
 ### Futher thoughts
 * Stack Overflow provides the *related_post* attribute for every post, determined by their internal data processing pipeline (specifically [Elastic Search's "More Like This" query](https://meta.stackexchange.com/questions/20473/how-are-related-questions-selected)). This allows us to generate a graph where nodes represent questions and edges connect related questions - could this be used for anything?
 
+### Engineering Challenges
+* Implementing an online version of MinHash/LSH that is performant for a high thoroughput data stream
+*  Ensure the Spark batch job will not fall too behind the high thoroughput input stream
+
 ### Architecture
-![Architecture](https://raw.github.com/kellielu/askedagain/master/imgs/AnnotatedArchitecture.jpg)
+![Architecture](https://raw.github.com/kellielu/askedagain/master/imgs/Architecture.jpg)
 ### Dataset
 Stack Overflow data dump, available as a subset of the [Stack Exchange data dump](https://archive.org/details/stackexchange). 
 The Stack Overflow dataset is also accessible on [Google Big Query](https://cloud.google.com/bigquery/public-data/stackoverflow).
