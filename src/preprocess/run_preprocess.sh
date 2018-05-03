@@ -1,0 +1,1 @@
+$SPARK_HOME/bin/spark-submit --master --executor-memory 10G --driver-memory 10G preprocessing.py
