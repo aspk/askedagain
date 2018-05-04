@@ -14,8 +14,8 @@ peg install ${CLUSTER_NAME} environment
 peg install ${CLUSTER_NAME} zookeeper
 peg install ${CLUSTER_NAME} kafka
 
-# wait 
+wait 
 peg service ${CLUSTER_NAME} zookeeper start
 peg service ${CLUSTER_NAME} kafka start
 
-peg
+peg sshcmd-cluster ${CLUSTER_NAME} "pip install smart_open kafka pyspark boto3 botocore termcolor"

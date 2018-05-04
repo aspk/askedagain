@@ -3,7 +3,7 @@ subnet_id: subnet-9509adde
 price: 0.13
 num_instances: 3
 key_name: Kellie-Lu-key-pair
-security_group_ids: sg-1217736c
+security_group_ids: sg-bac280c4
 instance_type: m4.large
 tag_name: kellie-kafka-cluster
 vol_size: 100

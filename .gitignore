@@ -1,4 +1,8 @@
+*_launch.sh
+*_workers.yml
+*_master.yml
 test/*
-*config.py
+src/config/*
 *__pycache__/*
 *.pyc
+.idea/*

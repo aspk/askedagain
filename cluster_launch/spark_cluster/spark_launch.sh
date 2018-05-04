@@ -14,8 +14,9 @@ peg install ${CLUSTER_NAME} aws
 peg install ${CLUSTER_NAME} environment
 peg install ${CLUSTER_NAME} hadoop
 peg install ${CLUSTER_NAME} spark
-# wait 
-# peg service ${CLUSTER_NAME} hadoop start
-# peg service ${CLUSTER_NAME} spark start
 
-peg sshcmd-cluster ${CLUSTER_NAME} "pip install kafka pyspark"
+wait 
+peg service ${CLUSTER_NAME} hadoop start
+peg service ${CLUSTER_NAME} spark start
+
+peg sshcmd-cluster ${CLUSTER_NAME} "pip install kafka pyspark boto3 botocore termcolor"

@@ -1,0 +1,24 @@
+{% extends "bootstrap/base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+{% import "bootstrap/fixes.html" as fixes %}
+{% import "bootstrap/utils.html" as util %}
+
+{% block content %}
+{{util.flashed_messages(dismissible=True)}}
+<div class="container">
+  <h1>AskedAgain</h1>
+  <h3>Stack Over Questions </h3>
+
+  	<ul>
+  	{% for question in questions %}
+  		<li> <p> {{question["question"]}} -- {{question["time"]}} </p> </li>
+  	{% endfor %}
+  	</ul>
+
+</div>
+{% endblock %}
+
+{% block head %}
+{{super()}}
+{{fixes.ie8()}}
+{% endblock %}

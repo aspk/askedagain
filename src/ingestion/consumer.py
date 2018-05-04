@@ -11,8 +11,9 @@ class Consumer(threading.Thread):
         consumer = kafka.KafkaConsumer(bootstrap_servers=config.KAFKA_SERVER)
         consumer.subscribe([config.KAFKA_TOPIC])
 
-        for message in consumer:
-            print("{0}\n\n".format(message))
+        if config.LOG_DEBUG:
+            for message in consumer:
+                print("{0}\n\n".format(message))
 
 
 def main():
@@ -20,11 +21,11 @@ def main():
     thread.daemon = True
     while True:
         if not thread.isAlive():
-            print("Starting kafka consumer!")
+            print("Starting Kafka Consumer...")
             thread.start()
         else:
-            print("Listening for new messages for topic: {0}".format(config.KAFKA_TOPIC))
-            time.sleep(5)
+            print("Listening for topic: {0}...".format(config.KAFKA_TOPIC))
+            time.sleep(config.KAFKA_CONSUMER_REFRESH)
 
 
 if __name__ == "__main__":

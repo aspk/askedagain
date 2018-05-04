@@ -1,9 +1,9 @@
 purchase_type: on_demand
-subnet_id: subnet-ba1bb9f1
+subnet_id: subnet-60e34e2b
 price: 0.13
 num_instances: 3
 key_name: Kellie-Lu-key-pair
-security_group_ids: sg-b46022ca
+security_group_ids: sg-bac280c4
 instance_type: m4.large
 tag_name: kellie-spark-cluster
 vol_size: 100

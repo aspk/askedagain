@@ -6,29 +6,22 @@ import smart_open
 import kafka
 import time
 import threading
+from termcolor import colored
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/config")
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/lib")
 import debug as config
-
-
-def get_bucket(bucket_name):
-        s3 = boto3.resource('s3')
-        try:
-            s3.meta.client.head_bucket(Bucket=bucket_name)
-        except botocore.exceptions.ClientError as e:
-            return None
-        else:
-            return s3.Bucket(bucket_name)
-
+import util
 
 class Producer(threading.Thread):
     def run(self):
         producer = kafka.KafkaProducer(bootstrap_servers=config.KAFKA_SERVER)
 
-        bucket = get_bucket(config.S3_BUCKET_RAW)
+        bucket = util.get_bucket(config.S3_BUCKET_STREAM)
 
         for json_obj in bucket.objects.all():
-            json_file = "s3://{0}/{1}".format(config.S3_BUCKET_RAW, json_obj.key)
+            json_file = "s3://{0}/{1}".format(config.S3_BUCKET_STREAM, json_obj.key)
             for line in smart_open.smart_open(json_file):
+                    if config.LOG_DEBUG: print(line)
                     producer.send(config.KAFKA_TOPIC, line)
 
 
@@ -36,6 +29,8 @@ def main():
     producer = Producer()
     producer.daemon = True
     producer.start()
+    print(colored("Starting Kafka Producer: Ingesting at {0} events per second...".format(1.0/(config.KAFKA_PRODUCER_RATE)),"green"))
+    
     while True:
         time.sleep(config.KAFKA_PRODUCER_RATE)
 

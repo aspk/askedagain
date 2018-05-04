@@ -11,3 +11,5 @@ peg fetch ${CLUSTER_NAME}
 peg install ${CLUSTER_NAME} ssh
 peg install ${CLUSTER_NAME} aws
 peg install ${CLUSTER_NAME} redis
+
+peg sshcmd-cluster ${CLUSTER_NAME} "pip install smart_open kafka pyspark boto3 botocore termcolor"
