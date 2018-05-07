@@ -13,6 +13,8 @@ from pyspark.sql.functions import col
 from pyspark.sql.types import *
 from pyspark.sql.functions import udf
 from pyspark.ml.feature import CountVectorizer
+from pyspark.sql import DataFrameWriter
+
 
 import time
 from termcolor import colored
@@ -45,20 +47,19 @@ def run_minhash_lsh():
 
     vectorizer = CountVectorizer(inputCol="cleaned_title",outputCol="vectorized_cleaned_title")
     vectorizer_transformer = vectorizer.fit(df)
-    df = vectorizer_transformer.transform(df)
+    vdf = vectorizer_transformer.transform(df)
 
     if(config.LOG_DEBUG): print(colored("[MLLIB BATCH]: Fitting MinHashLSH model...","green"))
-    model = mh.fit(df)
-    model.transform(df).show()
+    model = mh.fit(vdf)
+    model.transform(vdf).show()
 
     # approximate similarity join , threshold at 0.6
-    model.approxSimilarityJoin(df, df, 0.6, "JaccardDistance")
-        .select(col("df.vectorized_cleaned_title").alias("ct_a"),
-        col("df.vectorized_cleaned_title").alias("ct_b"),
-        col("JaccardDistance")).show()
+    sim_join = model.approxSimilarityJoin(vdf, vdf, 0.6, distCol="JaccardDistance")\
+        .select(col("datasetA.vectorized_cleaned_title").alias("ct_a"),\
+        col("datasetB.vectorized_cleaned_title").alias("ct_b"), col("JaccardDistance")).show()
 
-    # find 2 nearest neighbors
-    model.approxNearestNeighbors(df, key, 2).show()
+    # save this to query to postgres
+    my_writer = DataFrameWriter(sim_join)
 
 
 def main():

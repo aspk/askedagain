@@ -7,9 +7,7 @@ class LSH(object):
 		self._band_width = band_width
 		self._num_buckets = num_buckets
 
-	def find_lsh_buckets(self, doc_id, hash_signature):
-		bands = [ (doc_id, tuple(hash_signature[i:i + self._band_width])) for i in range(0,len(hash_signature), self._band_width) ]
-		lsh_hashes = [ (row[0],hash(row[1]) % self._num_buckets) for row in bands ]
+	def find_lsh_buckets(self, hash_signature):
+		bands = [ tuple(hash_signature[i:i + self._band_width]) for i in range(0,len(hash_signature), self._band_width) ]
+		lsh_hashes = [ (hash(row) % self._num_buckets) for row in bands]
 		return lsh_hashes
-
-		

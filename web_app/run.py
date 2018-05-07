@@ -6,7 +6,7 @@ import pickle
 import redis
 import config
 
-redis_db = redis.StrictRedis(host=config.REDIS_SERVER, port=6379, db=0)
+redis_db = redis.StrictRedis(host=config.REDIS_SERVER, port=6379, db=1)
 
 def create_app():
   app = Flask(__name__)
@@ -18,7 +18,8 @@ app = create_app()
 
 @app.route("/")
 def index():
-	questions = [] if redis_db.get('mvp') is None else pickle.loads(redis_db.get('mvp'))
-	print(questions)
-	return render_template("base.html",questions=questions)
-
+    # groups is a list of lists, object = json question object
+    keys = redis_db.keys()
+    kv = {k:pickle.loads(r.get(k)) for k in keys}
+	kv_items = kv.items()
+	return render_template("base.html", questions=kv_items)

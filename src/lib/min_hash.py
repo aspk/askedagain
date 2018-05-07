@@ -1,11 +1,13 @@
 import numpy as np
 import hashlib
 
-def jaccard_similarity(self,mhs1, mhs2):
+def jaccard_similarity(mhs1, mhs2):
     if(len(mhs1)!=len(mhs2)):
         return -1.0
     return (mhs1 == mhs2).sum() / float(len(mhs1))
 
+def js(a,b):
+    a_union_b = len(a) + len(b)
 
 # Class for generating a set of random MinHash hash functions, computing MinHash signatures
 class MinHash(object):

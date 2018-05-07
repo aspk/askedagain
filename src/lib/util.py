@@ -8,6 +8,7 @@ from termcolor import colored
 from functools import reduce
 from pyspark.sql import DataFrame
 import time
+import pickle
 
 # Fetches bucket object from aws
 def get_bucket(bucket_name):
@@ -32,7 +33,7 @@ def time_process(func, process_name):
 
 # For loading/saving pickle files
 def load_pickle_file(filepath):
-    if(os.path.isfile(filepath))
+    if(os.path.isfile(filepath)):
         with open(filepath,"rb") as p:
             hs = pickle.load(p)
         return hs

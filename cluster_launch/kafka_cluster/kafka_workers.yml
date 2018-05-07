@@ -1,5 +1,5 @@
 purchase_type: on_demand
-subnet_id: subnet-9509adde
+subnet_id: subnet-60e34e2b
 price: 0.13
 num_instances: 3
 key_name: Kellie-Lu-key-pair

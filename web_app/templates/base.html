@@ -9,11 +9,15 @@
   <h1>AskedAgain</h1>
   <h3>Stack Over Questions </h3>
 
-  	<ul>
+  	
   	{% for question in questions %}
-  		<li> <p> {{question["question"]}} -- {{question["time"]}} </p> </li>
+		<h3> question[0] </h3>
+        <ul>
+  			<li> <p> LSH HASH VALUE: {{ question[1] }} </p> </li>
+        </ul>
+        <br>
   	{% endfor %}
-  	</ul>
+  	
 
 </div>
 {% endblock %}

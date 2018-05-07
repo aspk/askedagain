@@ -15,3 +15,6 @@ peg install ${CLUSTER_NAME} redis
 
 # wait 
 peg service ${CLUSTER_NAME} redis start
+
+
+peg sshcmd-cluster ${CLUSTER_NAME} "sudo apt install redis-server"
