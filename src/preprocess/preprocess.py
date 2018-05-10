@@ -1,54 +1,118 @@
 import sys
 import os
-import boto3
-import botocore
+import re
 
 from pyspark.ml.feature import StopWordsRemover
 from pyspark.ml.feature import Tokenizer
+
+from pyspark.sql.types import ArrayType, StringType
+from pyspark.sql.functions import *
+
 from pyspark.conf import SparkConf
 from pyspark.context import SparkContext
 from pyspark.sql import SQLContext
 
 import time
 from termcolor import colored
+
+from itertools import chain
+import nltk
+nltk.download("wordnet")
+from nltk.corpus import wordnet
+from nltk.stem import WordNetLemmatizer
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/config")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/lib")
-import debug as config
+import config
 import util
 
 # For preprocessing a single question for streaming data
 # def preprocess(data_point):
 
 # Write preprocessed data back to file
-def write_aws_s3(bucket_name, file, df):
-    df.write.save("s3n://{0}/{1}".format(bucket_name, file), format="json", mode="overwrite")
+def write_aws_s3(bucket_name, file_name, df):
+    df.write.save("s3a://{0}/{1}".format(bucket_name, file_name), format="json", mode="overwrite")
+
+
+# Adds closest synonyms to list of tokens
+def find_all_synonyms(tokens):
+    final = []
+    for token in tokens:
+        synonyms = wordnet.synsets(token)
+        lemmas = list(set(chain.from_iterable([word.lemma_names() for word in synonyms])))
+        cleaned_lemmas = [lemma.replace("_"," ") for lemma in lemmas]
+        final = final + cleaned_lemmas[:config.NUM_SYNONYMS] + [token]
+    return tuple(final)
+
+
+# Stems words
+def lemmatize(tokens):
+    wordnet_lemmatizer = WordNetLemmatizer()
+    stems = [wordnet_lemmatizer.lemmatize(token) for token in tokens if len(token) > 1]
+    # print("In Lemmatize for: {0}".format(stems))
+    # print(stems)
+    return tuple(stems)
+
+
+# Removes code snippets and other irregular sections from question body, returns cleaned string
+def filter_body(body):
+    remove_code = re.sub('<[^>]+>', '', body)
+    remove_punctuation = re.sub(r"[^\w\s]"," ",remove_code)
+    remove_spaces = remove_punctuation.replace("\n"," ")
+    return remove_spaces
+
 
 # Preprocess a data file and upload it
-def preprocess_file(bucket_name, file, sql_context):
-    data = sql_context.read.json("s3n://{0}/{1}".format(bucket_name,file))
+def preprocess_file(bucket_name, file_name):
+    raw_data = sql_context.read.json("s3a://{0}/{1}".format(bucket_name, file_name))
+
+    # Clean question body
+    if(config.LOG_DEBUG): print(colored("[PROCESSING]: Cleaning question body...","green"))
+    clean_body = udf(lambda body: filter_body(body), StringType())
+    partially_cleaned_data = raw_data.withColumn("cleaned_body", clean_body("body"))
+
+    # Concat cleaned question body and question title to form question vector
+    if (config.LOG_DEBUG): print(colored("[PROCESSING]: Concating question body and question title...", "green"))
+    data = partially_cleaned_data.withColumn('text_body', concat(col("title"), lit(" "), col("body")))
 
     # Tokenize question title
-    tokenizer = Tokenizer(inputCol="title", outputCol="tokenized_title")
+    if (config.LOG_DEBUG): print(colored("[PROCESSING]: Tokenizing text vector...", "green"))
+    tokenizer = Tokenizer(inputCol="text_body", outputCol="text_body_tokenized")
     tokenized_data = tokenizer.transform(data)
 
     # Remove stop words
-    stop_words_remover = StopWordsRemover(inputCol="tokenized_title", outputCol="cleaned_title")
-    cleaned_data = stop_words_remover.transform(tokenized_data)
+    if (config.LOG_DEBUG): print(colored("[PROCESSING]: Removing stop words...", "green"))
+    stop_words_remover = StopWordsRemover(inputCol="text_body_tokenized", outputCol="text_body_stop_words_removed")
+    stop_words_removed_data = stop_words_remover.transform(tokenized_data)
 
-    # Do Word2Vec synonym matching, etc. when there's time
+    # Stem words
+    if (config.LOG_DEBUG): print(colored("[PROCESSING]: Stemming tokenized vector...", "green"))
+    stem = udf(lambda tokens:lemmatize(tokens),ArrayType(StringType()))
+    stemmed_data = stop_words_removed_data.withColumn("text_body_stemmed", stem("text_body_stop_words_removed"))
 
+    # # Add synonyms for related words
+    # if (config.LOG_DEBUG): print(colored("[PROCESSING]: Adding closest synonyms...", "green"))
+    # add_synonyms = udf(lambda tokens:find_all_synonyms(tokens),ArrayType(StringType()))
+    # synonymed_data = stemmed_data.withColumn("text_body_synonymed", add_synonyms("text_body_stemmed"))
+
+    # Extract data that we want
+    stemmed_data.registerTempTable("cleaned_data")
+    # stemmed_data.printSchema()
+    # stemmed_data.show()
+
+    preprocessed_data = sql_context.sql(
+        "SELECT title, body, text_body, text_body_stemmed, post_type_id, tags, score, comment_count, view_count, id from cleaned_data"
+    )
     # Write to AWS
-    cleaned_data.registerTempTable("cleaned_data")
-    preprocessed_data = sql_context.sql("SELECT title, tokenized_title, cleaned_title, post_type_id, tags, score, comment_count, view_count from cleaned_data")
-    write_aws_s3(config.S3_BUCKET_BATCH_PREPROCESSED, file, preprocessed_data)
+    if (config.LOG_DEBUG): print(colored("[UPLOAD]: Writing preprocessed data to AWS...", "green"))
+    write_aws_s3(config.S3_BUCKET_BATCH_PREPROCESSED, file_name, preprocessed_data)
 
 
-def preprocess_all(sql_context):
-    client = boto3.client('s3')
+def preprocess_all():
     bucket = util.get_bucket(config.S3_BUCKET_BATCH_RAW)
     for csv_obj in bucket.objects.all():
-        preprocess_file(config.S3_BUCKET_BATCH_RAW, csv_obj.key, sql_context)
-        print(colored("Finished preprocessing file s3://{0}/{1}".format(config.S3_BUCKET_BATCH_RAW,csv_obj.key),"green"))
+        preprocess_file(config.S3_BUCKET_BATCH_RAW, csv_obj.key)
+        print(colored("Finished preprocessing file s3a://{0}/{1}".format(config.S3_BUCKET_BATCH_RAW,csv_obj.key), "green"))
 
 
 def main():
@@ -57,12 +121,15 @@ def main():
 
     global sc
     sc = SparkContext(conf=spark_conf)
+    sc.setLogLevel("ERROR")
+    sc.addFile(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/lib/util.py")
+    sc.addFile(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/config/config.py")
 
     global sql_context
     sql_context = SQLContext(sc)
 
     start_time = time.time()
-    preprocess_all(sql_context)
+    preprocess_all()
     end_time = time.time()
     print(colored("Preprocessing run time (seconds): {0}".format(end_time - start_time),"magenta"))
 

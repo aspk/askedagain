@@ -54,7 +54,7 @@ def extract_data(json_whole):
 
 
 def process_question(record):
-    r = redis.StrictRedis(host=config.REDIS_SERVER, port=6379, db=1)
+    r = redis.StrictRedis(host=config.REDIS_SERVER, port=6379, db=config.REDIS_QUESTIONS_DB)
     # Preprocess
     # Create and save MinHash and LSH or load them from file
     # if (os.path.isfile(config.MIN_HASH_PICKLE) == False and os.path.isfile(config.LSH_PICKLE) == False):
@@ -69,14 +69,15 @@ def process_question(record):
     # Compute MinHash
 
     mh = MinHash(config.MIN_HASH_K_VALUE)
-    mlsh = LSH(config.LSH_NUM_BANDS, config.LSH_BAND_WIDTH, config.LSH_NUM_BUCKETS)
+    lsh = LSH(config.LSH_NUM_BANDS, config.LSH_BAND_WIDTH, config.LSH_NUM_BUCKETS)
 
     tokens = record["question"].split(" ")
-    rmh = mh.calc_min_hash_signature(tokens)
+    tokens_mh = mh.calc_min_hash_signature(tokens)
     # Compute LSH Signature
-    rlsh = mlsh.find_lsh_buckets(rmh)
+    tokens_lsh = lsh.find_lsh_buckets(tokens_mh)
     # Upload to redis the incoming hashes
-    r.set(record["question"],pickle.dumps(rlsh))
+
+    r.set(record["question"],pickle.dumps(tokens_lsh))
 
 
 

@@ -18,3 +18,4 @@ peg service ${CLUSTER_NAME} redis start
 
 
 peg sshcmd-cluster ${CLUSTER_NAME} "sudo apt install redis-server"
+peg sshcmd-clusters ${CLUSTER_NAME} "pip install redis"

@@ -19,4 +19,5 @@ wait
 peg service ${CLUSTER_NAME} hadoop start
 peg service ${CLUSTER_NAME} spark start
 
-peg sshcmd-cluster ${CLUSTER_NAME} "pip install kafka pyspark boto3 botocore termcolor"
+peg sshcmd-cluster ${CLUSTER_NAME} "pip install kafka pyspark boto3 botocore termcolor nltk mmh3"
+peg sshcmd-cluster ${CLUSTER_NAME} "python -m nltk.downloader wordnet"

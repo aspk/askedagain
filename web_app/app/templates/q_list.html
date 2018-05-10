@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block asked_again_info %}
+ <h1 class="page-header">Duplicate Question Candidates</h1>
+  <div class="table-responsive">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Tag</th>
+          <th>Potential Duplicate Question</th>
+          <th>Matching Question</th>
+          <th>Duplicate Likelihood</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for dup_pair in dup_cands %}
+          <tr>
+            <td> {{ dup_pair["timestamp"] }} </td>
+            <td> {{ dup_pair["tag"] }} </td>
+            <td> {{ dup_pair["q1"] }} <a href="{{ dup_pair['q1_link'] }}">Stack Overflow</a> </td>
+            <td> {{ dup_pair["q2"] }} <a href="{{ dup_pair['q2_link'] }}">Stack Overflow</a> </td>
+            <td> <button type="button" class="btn btn-xs {{ dup_pair['likelihood_button']}}">{{ dup_pair["likelihood_rating"] }} </button></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

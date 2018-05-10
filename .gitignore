@@ -6,3 +6,5 @@ src/config/*
 *__pycache__/*
 *.pyc
 .idea/*
+*.pickle
+*spark_warehouse*

@@ -10,6 +10,9 @@ from pyspark.sql import DataFrame
 import time
 import pickle
 
+from itertools import chain
+from nltk.corpus import wordnet
+
 # Fetches bucket object from aws
 def get_bucket(bucket_name):
         s3 = boto3.resource('s3')
@@ -22,14 +25,14 @@ def get_bucket(bucket_name):
 
 # Unions dataframes with same schema
 def union_dfs(*dfs):
-	return reduce(DataFrame.unionAll, dfs)
+    return reduce(DataFrame.unionAll, dfs)
 
 # Decorator for timing processess
 def time_process(func, process_name):
-	start_time = time.time()
-	func()
-	end_time = time.time()
-	print(colored("{0} run time (seconds): {0}".format(process_name, end_time - start_time),"magenta"))
+    start_time = time.time()
+    func()
+    end_time = time.time()
+    print(colored("{0} run time (seconds): {1}".format(process_name, end_time - start_time),"magenta"))
 
 # For loading/saving pickle files
 def load_pickle_file(filepath):
@@ -41,4 +44,10 @@ def load_pickle_file(filepath):
 
 def save_pickle_file(data,filename):
     with open(filename,"wb") as p:
-        pickle.dump(data, p, protocol=pickle.HIGHEST_PROTOCOL)    
+        pickle.dump(data, p, protocol=pickle.HIGHEST_PROTOCOL)
+
+# Returns first N synonyms of given word
+def n_synonyms(n,word):
+    synonyms = wordnet.synsets(word)
+    lemmas = set(chain.from_iterable([word.lemma_names() for word in synonyms]))
+    return lemmas if n=="all" else lemmas[:n]
