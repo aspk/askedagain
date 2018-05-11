@@ -30,6 +30,9 @@ def process_question(question):
     tags = question.tags.split("|")
     for tag in tags:
         # Fetch all questions from that tag
+        tq_table = rdb.hgetall("lsh:{0}".format(tag))
+        tq = tq_table.values()
+        tq_df = sql_context.read.json(sc.parallelize(tq))
         # Perform comparison and upload to Redis
         # If comparison above certain threshold, compare MinHash and upoad to Redis
         print("Almost there!")

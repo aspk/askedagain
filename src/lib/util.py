@@ -12,9 +12,12 @@ from pyspark.sql import DataFrame
 from itertools import chain
 from nltk.corpus import wordnet
 
-
 ''' General utility functions used across multiple files '''
 
+
+# Reads all JSON files from an AWS bucket
+def read_all_json_from_bucket(bucket_name):
+    return sql_context.read.json("s3a://{0}/*.json*".format(bucket_name))
 
 # Retrieves AWS bucket object
 def get_bucket(bucket_name):
@@ -48,9 +51,3 @@ def load_pickle_file(filepath):
 def save_pickle_file(data, filename):
     with open(filename, "wb") as p:
         pickle.dump(data, p, protocol=pickle.HIGHEST_PROTOCOL)
-
-# Returns first N synonyms of given word
-def n_synonyms(n, word):
-    synonyms = wordnet.synsets(word)
-    lemmas = set(chain.from_iterable([word.lemma_names() for word in synonyms]))
-    return lemmas if n == "all" else lemmas[:n]

@@ -2,6 +2,7 @@ from app import app
 from flask import render_template
 import datetime
 import redis
+import math
 
 import sys
 import os
@@ -14,16 +15,13 @@ rdb = redis.StrictRedis(host=config.REDIS_SERVER, port=6379, db=0)
 ''' TEMP REDIS FUNCTIONS '''
 
 
-def calc_likelhood(sim_score):
-    likelihoods = ["Not very likely (<.25)", "Somewhat likely (0.25-0.5)", "Likely (0.5-0.75)", "Very likely (0.75-1.0)"]
-    if(sim_score <= 0.25):
-        return likelihoods[0]
-    elif(sim_score <=0.5):
-        return likelihoods[1]
-    elif(sim_score<=0.75):
-        return likelihoods[2]
-    else:
-        return likelihoods[3]
+def calc_likelihood(sim_score):
+    likelihoods = [("Low", "btn-default"), ("Medium", "btn-warning"), ("High", "btn-danger")]
+    partition = 0.8 / len(likelihoods)
+    return likelihoods[math.floor(sim_score / partition)]
+
+def so_link(qid):
+    return "http://stackoverflow.com/q/{0}".format(qid)
 
 
 def get_qinfo(tag, qid):
@@ -41,7 +39,7 @@ def candidates():
 
     # candidate_sims = [(eval(dup[0]), dup[1]) for dup in rdb.zrangebyscore(
     #     "dup_cand:test_tag",
-    #     "0.04",
+    #     str(config.DUP_QUESTION_MIN_HASH_THRESHOLD),
     #     "+inf",
     #     withscores=True)]
     # print(candidate_sims)
@@ -67,17 +65,18 @@ def candidates():
     # Could be btn-warning
     # Likely btn-danger
     # groups is a list of lists, object = json question object
+    llh_rating, llh_button = calc_likelihood(0.2)
     dup_cands = [{
         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %I:%M %p"),
         "tag": "Javascript",
         "q1_id": 24014531,
         "q2_id": 12098,
-        "q1_link": "http://stackoverflow.com/q/{0}".format(24014531),
-        "q2_link": "http://stackoverflow.com/q/{0}".format(12098),
+        "q1_link": so_link(24014531),
+        "q2_link": so_link(12098),
         "q1": "What's the point of this?",
         "q2": "What's the point of that?",
-        "likelihood_button": "btn-warning",
-        "likelihood_rating": "Medium"
+        "likelihood_button": llh_button,
+        "likelihood_rating": llh_rating
     }]
     return render_template("q_list.html", dup_cands=dup_cands)
 

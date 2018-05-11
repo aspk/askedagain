@@ -39,6 +39,7 @@ def store_lsh_redis(rdd):
         for tag in tags:
             q_json = json.dumps({"id": q.id, "title": q.title, "min_hash": q.min_hash, "lsh_hash": q.lsh_hash})
             rdb.hset("lsh:{0}".format(tag), q.id, q_json)
+            rdb.sadd("lsh_keys", "lsh:{0}".format(tag))
 
 
 # Computes MinHashes, LSHes for all in DataFrame
@@ -58,18 +59,23 @@ def store_lsh_sim_redis(tag, rdd):
     for sim in rdd:
         q_pair = (tag, sim.q1_id, sim.q1_title, sim.q1_min_hash, sim.q2_id, sim.q2_title, sim.q2_min_hash)
         rdb.zadd("lsh_sim:{0}".format(tag), sim.lsh_sim, q_pair)
+        rdb.sadd("lsh_sim_keys", "lsh_sim:{0}".format(tag))
 
 
 # Compares LSH signatures within tags and uploads to redis
 def compare_lsh_within_tags(lsh):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
-    tags = [tag.replace("lsh:", "") for tag in rdb.keys("lsh:*")]
+
+    # Fetch all tags from lsh_keys set
+    tags = []
+    for lsh_key in rdb.sscan_iter("lsh_keys", match="*", count=500):
+        tags.append(lsh_key.replace("lsh:", ""))
 
     for tag in tags:
         tq_table = rdb.hgetall("lsh:{0}".format(tag))
         tq = tq_table.values()
-        if config.LOG_DEBUG: print("{0}: {1} question(s)".format(tag, len(tq)))
-        tq_df = spark.read.json(sc.parallelize(tq))
+        if config.LOG_DEBUG: print(colored("{0}: {1} question(s)".format(tag, len(tq)), "yellow"))
+        tq_df = sql_context.read.json(sc.parallelize(tq))
 
         find_lsh_sim = udf(lambda x, y: lsh.common_bands_count(x, y), IntegerType())
         lsh_sim_df = tq_df.alias("q1").join(tq_df.alias("q2"), col("q1.id") < col("q2.id")).select(
@@ -87,7 +93,11 @@ def compare_lsh_within_tags(lsh):
 # Compares MinHash signature of questions with > 2 LSH element overlaps, uploads to redis
 def compare_mh_for_cands(mh):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
-    tags = [tag.replace("lsh:", "") for tag in rdb.keys("lsh_sim:*")]
+
+    # Fetch all tags from lsh_sim_keys set
+    tags = []
+    for lsh_sim_key in rdb.sscan_iter("lsh_sim_keys", match="*", count=500):
+        tags.append(lsh_sim_key.replace("lsh_sim:", ""))
 
     for tag in tags:
         tq_candidates = rdb.zrangebyscore("lsh_sim:{0}".format(tag), config.LSH_SIMILARITY_BAND_COUNT, "+inf")
@@ -98,8 +108,8 @@ def compare_mh_for_cands(mh):
             tq_jss = mh.jaccard_sim_score(q1_min_hash, q2_min_hash)
 
             tq_reformatted_cand = (tag, q1_id, q1_title, q2_id, q2_title)
-            rdb.zadd("dup_cand:{0}".format(tag), tq_jss, tq_reformatted_cand) # Add to tag specific table
-            rdb.zadd("dup_cand", tq_jss, tq_reformatted_cand) # Add to general duplicate table
+            rdb.zadd("dup_cand:{0}".format(tag), tq_jss, tq_reformatted_cand)  # Add to tag specific table
+            rdb.zadd("dup_cand", tq_jss, tq_reformatted_cand)  # Add to general duplicate table
 
 
 def run_minhash_lsh():

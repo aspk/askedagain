@@ -29,7 +29,7 @@ def read_all_from_bucket():
     return df
 
 # Store LSH similarity data
-def store_spark_mllib_lsh_sim_redis(rdd):
+def store_spark_mllib_sim_redis(rdd):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
     for sim in rdd:
         q_pair = (sim.q1_id, sim.q1_title, sim.q2_id, sim.q2_title)
@@ -62,7 +62,7 @@ def run_minhash_lsh():
     )
 
     # Upload LSH similarities to Redis
-    sim_join.foreachPartition(store_spark_mllib_lsh_sim_redis)
+    sim_join.foreachPartition(store_spark_mllib_sim_redis)
 
 
 def main():
