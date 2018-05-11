@@ -17,12 +17,19 @@
           <tr>
             <td> {{ dup_pair["timestamp"] }} </td>
             <td> {{ dup_pair["tag"] }} </td>
-            <td> {{ dup_pair["q1"] }} <a href="{{ dup_pair['q1_link'] }}">Stack Overflow</a> </td>
-            <td> {{ dup_pair["q2"] }} <a href="{{ dup_pair['q2_link'] }}">Stack Overflow</a> </td>
+            <td> {{ dup_pair["q1"] }} <a class="so_link" href="{{ dup_pair['q1_link'] }}">Stack Overflow</a> </td>
+            <td> {{ dup_pair["q2"] }} <a class="so_link" href="{{ dup_pair['q2_link'] }}">Stack Overflow</a> </td>
             <td> <button type="button" class="btn btn-xs {{ dup_pair['likelihood_button']}}">{{ dup_pair["likelihood_rating"] }} </button></td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+
+<script type="text/javascript">
+  $("a.so_link").on("click",function(){
+         window.open($(this).attr("href");,"_blank");
+     });
+</script>
+
 {% endblock %}

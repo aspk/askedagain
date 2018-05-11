@@ -1,20 +1,29 @@
 {% extends "base.html" %}
 {% block asked_again_info %}
-<h1 class="page-header">Duplicate Question Clusters</h1>
+<h1 class="page-header">Duplicate Question Candidate Clusters</h1>
 
 <div class="row placeholders">
-<div class="col-xs-6 col-sm-12 placeholder">
-  <img src="data:image/gif;base64,R0lGODlhAQABAIAAAHd3dwAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==" width="200" height="200" class="img-responsive" alt="Generic placeholder thumbnail">
-  <h4>Clusters of duplicate questions candidates</h4>
-  <span class="text-muted">Hover to view questions</span>
-</div>
+	<div class="col-xs-6 col-sm-12 placeholder">
+	  <!-- <img src="data:image/gif;base64,R0lGODlhAQABAIAAAHd3dwAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==" width="200" height="200" class="img-responsive" alt="Generic placeholder thumbnail"> -->
+	  <span class="text-muted">Hover to view tag</span>
+	  <br>
+	  <span class="text-muted">Click to go to question's Stack Overflow page</span>
+	  
+	</div>
 </div>
 
+<div class="vis-main"></div>
+
 <script src="//d3js.org/d3.v3.min.js"></script>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8/jquery.min.js"></script>
+
 <script>
-var width = screen.width,
-    height = screen.height;
-var radius = 0.003;
+
+var width = screen.width;
+var height = screen.height;
+var radius = 0.005;
+
+
 d3.json("/static/data/graph_test.json", function (data) {
     var links = data;
     var nodes = {};
@@ -26,12 +35,13 @@ d3.json("/static/data/graph_test.json", function (data) {
             (nodes[link.target] = {name: link.target});
         link.cycle = link.cycle;
     });
-//    var width = screen.width,
-//        height = Math.min(1000 * (links.length * 0.02), screen.height);
-    // add svg to body
-    var svg = d3.select('body').append('svg')
+
+    // Add SVG
+    var svg = d3.select(".vis-main").append('svg')
         .attr('width', width)
         .attr('height', height);
+
+
     var force = d3.layout.force()
         .size([width, height])
         .nodes(d3.values(nodes))
@@ -39,18 +49,26 @@ d3.json("/static/data/graph_test.json", function (data) {
         .on("tick", tick)
         .linkDistance(15)
         .start();
+
+
     var link = svg.selectAll('.link')
         .data(links)
         .enter().append('line')
         .attr('class', 'link');
+
+
     if(link.cycle == true) {
         link.attr('class', 'cycle_link');
     }
+
+
     var node = svg.selectAll('.blue_node')
         .data(force.nodes())
         .enter().append('circle')
         .attr('class', 'blue_node')
         .attr('r', width * radius);
+    
+
     function tick(e) {
         node.attr('cx', function (d) {return d.x;})
             .attr('cy', function (d) {return d.y;})
@@ -60,6 +78,8 @@ d3.json("/static/data/graph_test.json", function (data) {
             .attr('x2', function (d) {return d.target.x;})
             .attr('y2', function (d) {return d.target.y;})
     }
+
 });
 </script>
+
 {% endblock %}
