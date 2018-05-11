@@ -6,15 +6,11 @@ class MinHash(object):
     def __init__(self, k, random_seed=50):
         self._k = k
         self._random_seed = random_seed
-        # Choose k random integers to XOR to create hashes
         self._masks = (np.random.RandomState(seed=self._random_seed).randint(np.iinfo(np.int64).min, np.iinfo(np.int64).max, self._k))
 
     def update_min_hash_signature(self, word, min_hash_signature):
-        # Create root hash
-        root_hash = mmh3.hash64(word)[0]
-        # XOR hash with randomly generated integer to simulate k hash functions
-        # Can add bitroll if there's time
-        word_hashes = np.bitwise_xor(self._masks, root_hash)
+        root_hash = mmh3.hash64(word.encode("ascii","ignore"))[0]
+        word_hashes = np.bitwise_xor(self._masks, root_hash)  # XOR root hash with k randomly generated integers to simulate k hash functions, can add bitroll if there's time
         min_hash_signature = np.minimum(min_hash_signature, word_hashes)
         return min_hash_signature
 

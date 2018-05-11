@@ -2,13 +2,12 @@ import sys
 import os
 import time
 import json
-import pickle
 from termcolor import colored
 
 from pyspark.conf import SparkConf
 from pyspark.context import SparkContext
 from pyspark.sql import SQLContext
-from pyspark.sql.functions import udf,col
+from pyspark.sql.functions import udf, col
 import redis
 
 from pyspark.sql.types import IntegerType
@@ -25,15 +24,12 @@ import locality_sensitive_hash
 # Reads all JSON files from S3 bucket and returns as a dataframe
 def read_all_from_bucket():
     bucket_name = config.S3_BUCKET_BATCH_PREPROCESSED
-    bucket = util.get_bucket(bucket_name)
-    fields = []
     if(config.LOG_DEBUG): print(colored("[BATCH]: Reading S3 files to master dataframe...", "green"))
-    # specify schema to speed up read from s3 when there's time - currently infers schema
-    # schema = StructType(fields)
+
     df = sql_context.read.json("s3a://{0}/*.json*".format(bucket_name))
     if(config.LOG_DEBUG): print(colored("[BATCH]: Created master dataframe for S3 files...", "green"))
-
     return df
+
 
 # Store question data
 def store_lsh_redis(rdd):
@@ -41,31 +37,75 @@ def store_lsh_redis(rdd):
     for q in rdd:
         tags = q.tags.split("|")
         for tag in tags:
-            q_json = json.dumps({"title":q.title,"min_hash":q.min_hash,"lsh_hash":q.lsh_hash})
+            q_json = json.dumps({"id": q.id, "title": q.title, "min_hash": q.min_hash, "lsh_hash": q.lsh_hash})
             rdb.hset("lsh:{0}".format(tag), q.id, q_json)
-            print("{0} --- {1}".format("lsh:{0}".format(tag), q.title))
 
 
-def pull_top_lsh_sim_redis(tag):
+# Computes MinHashes, LSHes for all in DataFrame
+def compute_minhash_lsh(df, mh, lsh):
+    calc_min_hash = udf(lambda x: list(map(lambda x: int(x), mh.calc_min_hash_signature(x))), ArrayType(IntegerType()))
+    calc_lsh_hash = udf(lambda x: list(map(lambda x: int(x), lsh.find_lsh_buckets(x))), ArrayType(IntegerType()))
+
+    df = df.withColumn("min_hash", calc_min_hash("text_body_stemmed"))
+    df = df.withColumn("lsh_hash", calc_lsh_hash("min_hash"))
+
+    df.foreachPartition(store_lsh_redis)
+
+
+# Store LSH similarity data
+def store_lsh_sim_redis(tag, rdd):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
-    # Pull tags from redis
-    # Check if in tags
-    # If not in tags, but is everything, pull everything
+    for sim in rdd:
+        q_pair = (tag, sim.q1_id, sim.q1_title, sim.q1_min_hash, sim.q2_id, sim.q2_title, sim.q2_min_hash)
+        rdb.zadd("lsh_sim:{0}".format(tag), sim.lsh_sim, q_pair)
 
 
-def store_dup_cands_redis(rdd):
+# Compares LSH signatures within tags and uploads to redis
+def compare_lsh_within_tags(lsh):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
-    # for dup_cand in rdd:
-    #     tags = dup_cand.tags
-    #     for tag in tags:
-    #         rdb.set("dup_cand:{0}:{1}+{2}".format(tag,dup_cand[0],dup_cand[1]))
+    tags = [tag.replace("lsh:", "") for tag in rdb.keys("lsh:*")]
+
+    for tag in tags:
+        tq_table = rdb.hgetall("lsh:{0}".format(tag))
+        tq = tq_table.values()
+        if config.LOG_DEBUG: print("{0}: {1} question(s)".format(tag, len(tq)))
+        tq_df = spark.read.json(sc.parallelize(tq))
+
+        find_lsh_sim = udf(lambda x, y: lsh.common_bands_count(x, y), IntegerType())
+        lsh_sim_df = tq_df.alias("q1").join(tq_df.alias("q2"), col("q1.id") < col("q2.id")).select(
+            col("q1.id").alias("q1_id"),
+            col("q2.id").alias("q2_id"),
+            col("q1.min_hash").alias("q1_min_hash"),
+            col("q2.min_hash").alias("q2_min_hash"),
+            col("q1.title").alias("q1_title"),
+            col("q2.title").alias("q2_title"),
+            find_lsh_sim("q1.lsh_hash", "q2.lsh_hash").alias("lsh_sim")
+        ).sort("q1_id", "q2_id")
+        lsh_sim_df.foreachPartition(lambda rdd: store_lsh_sim_redis(tag, rdd))
+
+
+# Compares MinHash signature of questions with > 2 LSH element overlaps, uploads to redis
+def compare_mh_for_cands(mh):
+    rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
+    tags = [tag.replace("lsh:", "") for tag in rdb.keys("lsh_sim:*")]
+
+    for tag in tags:
+        tq_candidates = rdb.zrangebyscore("lsh_sim:{0}".format(tag), config.LSH_SIMILARITY_BAND_COUNT, "+inf")
+        for tq_cand_string in tq_candidates:
+            tq_cand = eval(tq_cand_string)
+            tag, q1_id, q1_title, q1_min_hash, q2_id, q2_title, q2_min_hash = tq_cand
+
+            tq_jss = mh.jaccard_sim_score(q1_min_hash, q2_min_hash)
+
+            tq_reformatted_cand = (tag, q1_id, q1_title, q2_id, q2_title)
+            rdb.zadd("dup_cand:{0}".format(tag), tq_jss, tq_reformatted_cand) # Add to tag specific table
+            rdb.zadd("dup_cand", tq_jss, tq_reformatted_cand) # Add to general duplicate table
 
 
 def run_minhash_lsh():
     df = read_all_from_bucket()
-    # Consider broadcasting these variables
     #  Create and save MinHash and LSH if not exist or load them from file
-    if(os.path.isfile(config.MIN_HASH_PICKLE) == False and os.path.isfile(config.LSH_PICKLE) == False):
+    if(not os.path.isfile(config.MIN_HASH_PICKLE) or not os.path.isfile(config.LSH_PICKLE)):
         mh = min_hash.MinHash(config.MIN_HASH_K_VALUE)
         lsh = locality_sensitive_hash.LSH(config.LSH_NUM_BANDS, config.LSH_BAND_WIDTH, config.LSH_NUM_BUCKETS)
         util.save_pickle_file(mh, config.MIN_HASH_PICKLE)
@@ -74,38 +114,17 @@ def run_minhash_lsh():
         mh = util.load_pickle_file(config.MIN_HASH_PICKLE)
         lsh = util.load_pickle_file(config.LSH_PICKLE)
 
-    calc_min_hash = udf(lambda x: list(map(lambda x:int(x), mh.calc_min_hash_signature(x))), ArrayType(IntegerType()))
-    calc_lsh_hash = udf(lambda x: list(map(lambda x:int(x), lsh.find_lsh_buckets(x))),ArrayType(IntegerType()))
+    # Compute MinHash/LSH hashes for every question
+    if (config.LOG_DEBUG): print(colored("[BATCH]: Calculating MinHash hashes and LSH hashes...", "green"))
+    compute_minhash_lsh(df, mh, lsh)
 
-    # Create min hashes for all titles in df
-    if (config.LOG_DEBUG): print(colored("[BATCH]: Calculating MinHash hashes...", "green"))
-    df = df.withColumn("min_hash", calc_min_hash("text_body_stemmed"))
-
-    # Create locality sensitive hashes with document ID and store in redis
-    if (config.LOG_DEBUG): print(colored("[BATCH]: Calculating LSH hashes...", "green"))
-    df = df.withColumn("lsh_hash",calc_lsh_hash("min_hash"))
-
-    # Update and store hashes to redis with lsh namespace
-    if (config.LOG_DEBUG): print(colored("[BATCH]: Uploading LSH hashes to Redis...", "cyan"))
-    df.foreachPartition(store_lsh_redis)
-
-    # Check pairs similarity by only comparing with those in same namespace from redis
+    # Compute pairwise LSH similarities for questions within tags
     if (config.LOG_DEBUG): print(colored("[BATCH]: Fetching questions in same namespace from Redis, calculating LSH hash similarities, uploading similarities back to Redis...", "cyan"))
-    # use redis.hget <lsh_hash:java> to get everything associated with key quickly
+    compare_lsh_within_tags(lsh)
 
-    # df.crossJoin(df.select("lsh_hash"))
-    find_lsh_sim = udf(lambda x, y: lsh.common_buckets_count(x,y), IntegerType())
-    df.alias("i").join(df.alias("j"), col("i.ID") < col("j.ID")) \
-        .select(
-        col("i.ID").alias("i"),
-        col("j.ID").alias("j"),
-        find_lsh_sim("i.norm", "j.norm").alias("lsh_sim")) \
-        .sort("i", "j") \
-        .show()
-
-    # Query redis for similarity above threshold
-    if (config.LOG_DEBUG): print(colored("[BATCH]: Fetching candidate duplicate pairs in same namespace from Redis, comparing MinHash hashes, uploading similarities back to Redis...", "cyan"))
-    # use redis hscan to get all similarities, hget <lsh_sim:java> to get candidate duplicate pairs
+    # Compare MinHashes for two question if LSH has overlap > 2
+    if (config.LOG_DEBUG): print(colored("[BATCH]: Comparing MinHashes for candidates, uploading MinHash similarities for candidates back to Redis...", "cyan"))
+    compare_mh_for_cands(mh)
 
 
 def main():
@@ -125,7 +144,7 @@ def main():
     start_time = time.time()
     run_minhash_lsh()
     end_time = time.time()
-    print(colored("Spark Custom MinHashLSH run time (seconds): {0} seconds".format(end_time - start_time),"magenta"))
+    print(colored("Spark Custom MinHashLSH run time (seconds): {0} seconds".format(end_time - start_time), "magenta"))
 
 
 if(__name__ == "__main__"):

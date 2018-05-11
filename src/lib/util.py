@@ -1,18 +1,22 @@
 import os
-
 import boto3
 import botocore
-from termcolor import colored
-
-from functools import reduce
-from pyspark.sql import DataFrame
 import time
 import pickle
+
+from termcolor import colored
+from functools import reduce
+
+from pyspark.sql import DataFrame
 
 from itertools import chain
 from nltk.corpus import wordnet
 
-# Fetches bucket object from aws
+
+''' General utility functions used across multiple files '''
+
+
+# Retrieves AWS bucket object
 def get_bucket(bucket_name):
         s3 = boto3.resource('s3')
         try:
@@ -33,7 +37,7 @@ def time_process(func, process_name):
     end_time = time.time()
     print(colored("{0} run time (seconds): {1}".format(process_name, end_time - start_time), "magenta"))
 
-# For loading/saving pickle files
+# Wrappers for loading/saving pickle files
 def load_pickle_file(filepath):
     if(os.path.isfile(filepath)):
         with open(filepath, "rb") as p:

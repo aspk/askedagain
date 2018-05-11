@@ -1,19 +1,18 @@
 import sys
 import os
 import re
+import time
+from termcolor import colored
 
 from pyspark.ml.feature import StopWordsRemover
 from pyspark.ml.feature import Tokenizer
 
-from pyspark.sql.types import ArrayType, StringType
+from pyspark.sql.types import ArrayType, StringType, StructType, StructField
 from pyspark.sql.functions import udf, concat, col, lit
 
 from pyspark.conf import SparkConf
 from pyspark.context import SparkContext
 from pyspark.sql import SQLContext
-
-import time
-from termcolor import colored
 
 from itertools import chain
 import nltk
@@ -26,20 +25,22 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/
 import config
 import util
 
-# Write preprocessed data back to file
+'''Master preprocessing script + General preprocessing functions'''
+
+
 def write_aws_s3(bucket_name, file_name, df):
     df.write.save("s3a://{0}/{1}".format(bucket_name, file_name), format="json", mode="overwrite")
 
 
 # Adds closest synonyms to list of tokens
-def find_all_synonyms(tokens):
-    final = []
-    for token in tokens:
-        synonyms = wordnet.synsets(token)
-        lemmas = list(set(chain.from_iterable([word.lemma_names() for word in synonyms])))
-        cleaned_lemmas = [lemma.replace("_", " ") for lemma in lemmas]
-        final = final + cleaned_lemmas[:config.NUM_SYNONYMS] + [token]
-    return tuple(final)
+# def find_all_synonyms(tokens):
+#     final = []
+#     for token in tokens:
+#         synonyms = wordnet.synsets(token)
+#         lemmas = list(set(chain.from_iterable([word.lemma_names() for word in synonyms])))
+#         cleaned_lemmas = [lemma for lemma in lemmas if not lemma.contains("_")]  # Remove multi-word synonyms
+#         final = final + cleaned_lemmas[:config.NUM_SYNONYMS] + [token]
+#     return tuple(final)
 
 
 # Stems words
@@ -54,11 +55,18 @@ def filter_body(body):
     remove_code = re.sub('<[^>]+>', '', body)
     remove_punctuation = re.sub(r"[^\w\s]", " ", remove_code)
     remove_spaces = remove_punctuation.replace("\n", " ")
-    return remove_spaces
+    return remove_spaces.encode('ascii', 'ignore')
 
 
 # Preprocess a data file and upload it
 def preprocess_file(bucket_name, file_name):
+    # schema = StructType([
+    #     StructField("TICKET", StringType(), True),
+    #     StructField("TRANFERRED", StringType(), True),
+    #     StructField("ACCOUNT", StringType(), True),
+    # ])
+
+    # raw_data = sql_context.read.json("s3a://{0}/{1}".format(bucket_name, file_name), schema)
     raw_data = sql_context.read.json("s3a://{0}/{1}".format(bucket_name, file_name))
 
     # Clean question body
@@ -87,7 +95,7 @@ def preprocess_file(bucket_name, file_name):
 
     # # Add synonyms for related words
     # if (config.LOG_DEBUG): print(colored("[PROCESSING]: Adding closest synonyms...", "green"))
-    # add_synonyms = udf(lambda tokens:find_all_synonyms(tokens),ArrayType(StringType()))
+    # add_synonyms = udf(lambda tokens: find_all_synonyms(tokens), ArrayType(StringType()))
     # synonymed_data = stemmed_data.withColumn("text_body_synonymed", add_synonyms("text_body_stemmed"))
 
     # Extract data that we want
@@ -95,8 +103,9 @@ def preprocess_file(bucket_name, file_name):
     final_data.registerTempTable("final_data")
 
     preprocessed_data = sql_context.sql(
-        "SELECT title, body, text_body, text_body_stemmed, post_type_id, tags, score, comment_count, view_count, id from final_data"
+        "SELECT title, body, text_body, text_body_stemmed, text_body_synonymed, post_type_id, tags, score, comment_count, view_count, id from final_data"
     )
+
     # Write to AWS
     if (config.LOG_DEBUG): print(colored("[UPLOAD]: Writing preprocessed data to AWS...", "green"))
     write_aws_s3(config.S3_BUCKET_BATCH_PREPROCESSED, file_name, preprocessed_data)
