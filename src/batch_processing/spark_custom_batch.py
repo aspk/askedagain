@@ -10,8 +10,7 @@ from pyspark.sql import SQLContext
 from pyspark.sql.functions import udf, col
 import redis
 
-from pyspark.sql.types import IntegerType
-from pyspark.sql.types import ArrayType
+from pyspark.sql.types import IntegerType, ArrayType
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/config")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/lib")
@@ -53,17 +52,16 @@ def compute_minhash_lsh(df, mh, lsh):
     df.foreachPartition(store_lsh_redis)
 
 
-# Store LSH similarity data
-def store_lsh_sim_redis(tag, rdd):
+# Store duplicate candidates in Redis
+def store_dup_cand_redis(tag, rdd):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
-    for sim in rdd:
-        q_pair = (tag, sim.q1_id, sim.q1_title, sim.q1_min_hash, sim.q2_id, sim.q2_title, sim.q2_min_hash)
-        rdb.zadd("lsh_sim:{0}".format(tag), sim.lsh_sim, q_pair)
-        rdb.sadd("lsh_sim_keys", "lsh_sim:{0}".format(tag))
+    for cand in rdd:
+        cand_reformatted = (tag, cand.q1_id, cand.q1_title, cand.q2_id, cand.q2_title)
+        rdb.zadd("dup_cand", cand.mh_js, cand_reformatted)
 
 
-# Compares LSH signatures within tags and uploads to redis
-def compare_lsh_within_tags(lsh):
+# Compares LSH signatures, MinHash signature, and find duplicate candidates
+def find_dup_cands_within_tags(mh, lsh):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
 
     # Fetch all tags from lsh_keys set
@@ -73,43 +71,32 @@ def compare_lsh_within_tags(lsh):
 
     for tag in tags:
         tq_table = rdb.hgetall("lsh:{0}".format(tag))
-        tq = tq_table.values()
-        if config.LOG_DEBUG: print(colored("{0}: {1} question(s)".format(tag, len(tq)), "yellow"))
-        tq_df = sql_context.read.json(sc.parallelize(tq))
+        if(len(tq_table) >= config.DUP_QUESTION_MIN_TAG_SIZE):  # Ignore extremely small tags
+            tq = tq_table.values()
+            if config.LOG_DEBUG: print(colored("{0}: {1} question(s)".format(tag, len(tq)), "yellow"))
+            tq_df = sql_context.read.json(sc.parallelize(tq))
 
-        find_lsh_sim = udf(lambda x, y: lsh.common_bands_count(x, y), IntegerType())
-        lsh_sim_df = tq_df.alias("q1").join(tq_df.alias("q2"), col("q1.id") < col("q2.id")).select(
-            col("q1.id").alias("q1_id"),
-            col("q2.id").alias("q2_id"),
-            col("q1.min_hash").alias("q1_min_hash"),
-            col("q2.min_hash").alias("q2_min_hash"),
-            col("q1.title").alias("q1_title"),
-            col("q2.title").alias("q2_title"),
-            find_lsh_sim("q1.lsh_hash", "q2.lsh_hash").alias("lsh_sim")
-        ).sort("q1_id", "q2_id")
-        lsh_sim_df.foreachPartition(lambda rdd: store_lsh_sim_redis(tag, rdd))
+            find_lsh_sim = udf(lambda x, y: lsh.common_bands_count(x, y), IntegerType())
+            lsh_sim_df = tq_df.alias("q1").join(tq_df.alias("q2"), col("q1.id") < col("q2.id")).select(
+                col("q1.id").alias("q1_id"),
+                col("q2.id").alias("q2_id"),
+                col("q1.min_hash").alias("q1_min_hash"),
+                col("q2.min_hash").alias("q2_min_hash"),
+                col("q1.title").alias("q1_title"),
+                col("q2.title").alias("q2_title"),
+                find_lsh_sim("q1.lsh_hash", "q2.lsh_hash").alias("lsh_sim")
+            ).sort("q1_id", "q2_id")
 
+            # Duplicate candidates have a high enough LSH similarity count
+            lsh_cand_df = lsh_sim_df.filter(lsh_sim_df.lsh_sim >= config.LSH_SIMILARITY_BAND_COUNT)
 
-# Compares MinHash signature of questions with > 2 LSH element overlaps, uploads to redis
-def compare_mh_for_cands(mh):
-    rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
+            # Compare MinHash jaccard similarity scores for duplicate candidates
+            find_mh_js = udf(lambda x, y: mh.jaccard_sim_score(x, y))
+            mh_cand_df = lsh_cand_df.withColumn("mh_js", find_mh_js(lsh_cand_df.q1_min_hash, lsh_cand_df.q2_min_hash))
 
-    # Fetch all tags from lsh_sim_keys set
-    tags = []
-    for lsh_sim_key in rdb.sscan_iter("lsh_sim_keys", match="*", count=500):
-        tags.append(lsh_sim_key.replace("lsh_sim:", ""))
-
-    for tag in tags:
-        tq_candidates = rdb.zrangebyscore("lsh_sim:{0}".format(tag), config.LSH_SIMILARITY_BAND_COUNT, "+inf")
-        for tq_cand_string in tq_candidates:
-            tq_cand = eval(tq_cand_string)
-            tag, q1_id, q1_title, q1_min_hash, q2_id, q2_title, q2_min_hash = tq_cand
-
-            tq_jss = mh.jaccard_sim_score(q1_min_hash, q2_min_hash)
-
-            tq_reformatted_cand = (tag, q1_id, q1_title, q2_id, q2_title)
-            rdb.zadd("dup_cand:{0}".format(tag), tq_jss, tq_reformatted_cand)  # Add to tag specific table
-            rdb.zadd("dup_cand", tq_jss, tq_reformatted_cand)  # Add to general duplicate table
+            # Duplicate candidates need to have a high enough MinHash Jaccard similarity score
+            dup_cand_df = mh_cand_df.filter(mh_cand_df.mh_js >= config.DUP_QUESTION_MIN_HASH_THRESHOLD)
+            dup_cand_df.foreachPartition(lambda rdd: store_dup_cand_redis(tag, rdd))
 
 
 def run_minhash_lsh():
@@ -129,12 +116,8 @@ def run_minhash_lsh():
     compute_minhash_lsh(df, mh, lsh)
 
     # Compute pairwise LSH similarities for questions within tags
-    if (config.LOG_DEBUG): print(colored("[BATCH]: Fetching questions in same namespace from Redis, calculating LSH hash similarities, uploading similarities back to Redis...", "cyan"))
-    compare_lsh_within_tags(lsh)
-
-    # Compare MinHashes for two question if LSH has overlap > 2
-    if (config.LOG_DEBUG): print(colored("[BATCH]: Comparing MinHashes for candidates, uploading MinHash similarities for candidates back to Redis...", "cyan"))
-    compare_mh_for_cands(mh)
+    if (config.LOG_DEBUG): print(colored("[BATCH]: Fetching questions in same tag, comparing LSH and MinHash, uploading duplicate candidates back to Redis...", "cyan"))
+    find_dup_cands_within_tags(mh, lsh)
 
 
 def main():

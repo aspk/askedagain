@@ -9,8 +9,10 @@ from pyspark.context import SparkContext
 from pyspark.sql import SQLContext
 
 from pyspark.ml.feature import MinHashLSH
-from pyspark.sql.functions import col
 from pyspark.ml.feature import CountVectorizer
+
+from pyspark.sql.functions import col, udf
+from pyspark.sql.types import StringType
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/config")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/lib")
@@ -32,8 +34,15 @@ def read_all_from_bucket():
 def store_spark_mllib_sim_redis(rdd):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
     for sim in rdd:
-        q_pair = (sim.q1_id, sim.q1_title, sim.q2_id, sim.q2_title)
+        q_pair = (sim.tag, sim.q1_id, sim.q1_title, sim.q2_id, sim.q2_title)
         rdb.zadd("spark_mllib_sim", sim.jaccard_sim, q_pair)
+
+# Returns first common tag between two tag lists, may not be the main tag
+def common_tag(x, y):
+    x_tags = x.split("|")
+    y_tags = y.split("|")
+    intersect = list(set(x_tags) & set(y_tags))
+    return "" if len(intersect) < 1 else intersect[0]
 
 
 def run_minhash_lsh():
@@ -50,14 +59,17 @@ def run_minhash_lsh():
     model.transform(vdf).show()
 
     # Approximate similarity join between pairwise elements
+    find_tag = udf(lambda x, y: common_tag(x, y), StringType())
+
     if(config.LOG_DEBUG): print(colored("[MLLIB BATCH]: Computing approximate similarity join...", "green"))
-    sim_join = model.approxSimilarityJoin(vdf, vdf, 0.6, distCol="jaccard_sim").select(
+    sim_join = model.approxSimilarityJoin(vdf, vdf, config.DUP_QUESTION_MIN_HASH_THRESHOLD, distCol="jaccard_sim").select(
         col("datasetA.id").alias("q1_id"),
         col("datasetB.id").alias("q2_id"),
         col("datasetA.title").alias("q1_title"),
         col("datasetB.title").alias("q2_title"),
         col("datasetA.text_body_vectorized").alias("q1_text_body"),
         col("datasetB.text_body_vectorized").alias("q2_text_body"),
+        find_tag("q1.tags", "q2.tags").alias("tag"),
         col("jaccard_sim")
     )
 

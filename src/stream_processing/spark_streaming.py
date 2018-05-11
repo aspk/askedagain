@@ -25,26 +25,27 @@ def extract_data(data):
     return data
 
 
-def process_question(question):
+def process_question(question, qmh, qlsh):
     rdb = redis.StrictRedis(host=config.REDIS_SERVER, port=6379, db=0)
     tags = question.tags.split("|")
     for tag in tags:
         # Fetch all questions from that tag
         tq_table = rdb.hgetall("lsh:{0}".format(tag))
-        tq = tq_table.values()
-        tq_df = sql_context.read.json(sc.parallelize(tq))
-        # Perform comparison and upload to Redis
-        # If comparison above certain threshold, compare MinHash and upoad to Redis
-        print("Almost there!")
+        if(len(tq_table) >= config.DUP_QUESTION_MIN_TAG_SIZE):
+            tq = tq_table.values()
+            tq_df = ssc.read.json(ssc.parallelize(tq))
+            # # Perform comparison of LSHand
+            # # If comparison above certain threshold, compare MinHash and upoad to Redis
+            # cand_reformatted = (tag, cand.q1_id, cand.q1_title, cand.q2_id, cand.q2_title)
+            # rdb.zadd("dup_cand", mh_js, cand_reformatted)
 
 
 # Compute MinHash
 def process_mini_batch(rdd, mh, lsh):
-
     for question in rdd:
         if len(question) > 0:
             print("Record: {0}".format(question))
-            process_question(question)
+            process_question(question, qmh, qlsh)
 
 
 def main():
