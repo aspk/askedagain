@@ -18,7 +18,7 @@ global sql_context
 
 
 # Reads all JSON files from an AWS bucket
-def read_all_json_from_bucket(bucket_name):
+def read_all_json_from_bucket(sql_context, bucket_name):
     if(config.LOG_DEBUG): print(colored("[BATCH]: Reading S3 files to master dataframe...", "green"))
     return sql_context.read.json("s3a://{0}/*.json*".format(bucket_name))
 

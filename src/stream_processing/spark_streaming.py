@@ -40,16 +40,15 @@ def process_question(question, mh, lsh):
     q_mh = mh.calc_min_hash_signature(question)
     q_lsh = lsh.find_lsh_buckets(q_mh)
 
-    print(question)
     tags = question["tags"].split("|")
     for tag in tags:
         # Fetch all questions from that tag
-        tq_table_size = rdb.hlen("lsh:{0}".format(tag))
+        tq_table_size = rdb.zcard("lsh:{0}".format(tag))
 
         if(tq_table_size >= config.DUP_QUESTION_MIN_TAG_SIZE):
-            tq_table = rdb.hgetall("lsh:{0}".format(tag))
-            tq = tq_table.values()
-            print(tag,tq_table_size)
+            tq_table = rdb.zrangebyscore("lsh:{0}".format(tag), config.QUESTION_POPULARITY_THRESHOLD, "+inf", withscores=False)
+            tq = tq_table
+            print(tag, tq_table_size)
             # tq_df = ssc.read.json(ssc.parallelize(tq))
             # Perform comparison of LSH
             # find_lsh_sim = udf(lambda tq_lsh: lsh.command_bands_count(tq_lsh, q_lsh))

@@ -8,8 +8,7 @@ from pyspark.conf import SparkConf
 from pyspark.context import SparkContext
 from pyspark.sql import SQLContext
 
-from pyspark.ml.feature import MinHashLSH
-from pyspark.ml.feature import CountVectorizer
+from pyspark.ml.feature import MinHashLSH, VectorAssembler, HashingTF
 
 from pyspark.sql.functions import col, udf
 from pyspark.sql.types import StringType
@@ -25,8 +24,9 @@ os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages com.amazonaws:aws-java-sdk:1.10.
 def store_spark_mllib_sim_redis(rdd):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
     for sim in rdd:
-        q_pair = (sim.tag, sim.q1_id, sim.q1_title, sim.q2_id, sim.q2_title)
-        rdb.zadd("spark_mllib_sim", sim.jaccard_sim, q_pair)
+        if(sim.jaccard_sim > config.DUP_QUESTION_IDENTIFY_THRESHOLD):
+            q_pair = (sim.tag, sim.q1_id, sim.q1_title, sim.q2_id, sim.q2_title)
+            rdb.zadd("spark_mllib_sim", sim.jaccard_sim, q_pair)
 
 # Returns first common tag between two tag lists, may not be the main tag
 def common_tag(x, y):
@@ -37,13 +37,16 @@ def common_tag(x, y):
 
 
 def run_minhash_lsh():
-    df = util.read_all_json_from_bucket(config.S3_BUCKET_BATCH_PREPROCESSED)
+    df = util.read_all_json_from_bucket(sql_context, config.S3_BUCKET_BATCH_PREPROCESSED)
     mh = MinHashLSH(inputCol="text_body_vectorized", outputCol="min_hash", numHashTables=config.LSH_NUM_BANDS)
 
     # Vectorize so we can fit to MinHashLSH model
-    vectorizer = CountVectorizer(inputCol="text_body_stemmed", outputCol="text_body_vectorized")
-    vectorizer_transformer = vectorizer.fit(df)
-    vdf = vectorizer_transformer.transform(df)
+
+    htf = HashingTF(inputCol="text_body_stemmed", outputCol="raw_features", numFeatures=1000)
+    htf_df = htf.transform(df)
+
+    vectorizer = VectorAssembler(inputCols=["raw_features"], outputCol="text_body_vectorized")
+    vdf = vectorizer.transform(htf_df)
 
     if(config.LOG_DEBUG): print(colored("[MLLIB BATCH]: Fitting MinHashLSH model...", "green"))
     model = mh.fit(vdf)

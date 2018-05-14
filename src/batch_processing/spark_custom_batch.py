@@ -27,7 +27,7 @@ def store_lsh_redis(rdd):
         tags = q.tags.split("|")
         for tag in tags:
             q_json = json.dumps({"id": q.id, "title": q.title, "min_hash": q.min_hash, "lsh_hash": q.lsh_hash})
-            rdb.hset("lsh:{0}".format(tag), q.id, q_json)
+            rdb.zadd("lsh:{0}".format(tag), q.view_count, q_json)
             rdb.sadd("lsh_keys", "lsh:{0}".format(tag))
 
 
@@ -47,6 +47,7 @@ def store_dup_cand_redis(tag, rdd):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
     for cand in rdd:
         cand_reformatted = (tag, cand.q1_id, cand.q1_title, cand.q2_id, cand.q2_title)
+        # Store by time
         rdb.zadd("dup_cand", cand.mh_js, cand_reformatted)
 
 
@@ -55,15 +56,12 @@ def find_dup_cands_within_tags(mh, lsh):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
 
     # Fetch all tags from lsh_keys set
-    tags = []
     for lsh_key in rdb.sscan_iter("lsh_keys", match="*", count=500):
-        tags.append(lsh_key.replace("lsh:", ""))
-    if config.LOG_DEBUG: print(colored("Found {0} total tags.".format(len(tags))), "green")
-
-    for tag in tags:
-        tq_table = rdb.hgetall("lsh:{0}".format(tag))
-        if(len(tq_table) >= config.DUP_QUESTION_MIN_TAG_SIZE):  # Ignore extremely small tags
-            tq = tq_table.values()
+        tag = lsh_key.replace("lsh:", "")
+        tq_table_size = rdb.zcard("lsh:{0}".format(tag))
+        if(tq_table_size >= config.DUP_QUESTION_MIN_TAG_SIZE):  # Ignore extremely small tags
+            tq_table = rdb.zrangebyscore("lsh:{0}".format(tag), "-inf", "+inf", withscores=False)
+            tq = tq_table
             if config.LOG_DEBUG: print(colored("{0}: {1} question(s)".format(tag, len(tq)), "yellow"))
             tq_df = sql_context.read.json(sc.parallelize(tq))
 
@@ -91,7 +89,7 @@ def find_dup_cands_within_tags(mh, lsh):
 
 
 def run_minhash_lsh():
-    df = util.read_all_json_from_bucket(config.S3_BUCKET_BATCH_PREPROCESSED)
+    df = util.read_all_json_from_bucket(sql_context, config.S3_BUCKET_BATCH_PREPROCESSED)
     #  Create and save MinHash and LSH if not exist or load them from file
     if(not os.path.isfile(config.MIN_HASH_PICKLE) or not os.path.isfile(config.LSH_PICKLE)):
         mh = min_hash.MinHash(config.MIN_HASH_K_VALUE)

@@ -8,3 +8,4 @@ src/config/*
 .idea/*
 *.pickle
 *spark_warehouse*
+*spark_streaming_checkpoint*

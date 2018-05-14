@@ -14,11 +14,13 @@ peg install ${CLUSTER_NAME} environment
 peg install ${CLUSTER_NAME} redis
 
 wait 
-
 peg sshcmd-cluster ${CLUSTER_NAME} "sudo apt install redis-server"
+
+wait 
 peg sshcmd-cluster ${CLUSTER_NAME} "sudo apt install redis-tools"
+
+wait
 peg sshcmd-clusters ${CLUSTER_NAME} "pip install redis redis-py-cluster"
 
 wait
-
 peg service ${CLUSTER_NAME} redis start

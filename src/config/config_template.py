@@ -19,7 +19,7 @@ S3_BUCKET_STREAM = ""
 
 
 # Kafka settings
-KAFKA_SERVERS = "" # ip:port for kafka brokers
+KAFKA_SERVERS = ""  # ip:port for kafka brokers
 KAFKA_PRODUCER_RATE = 0  # seconds
 KAFKA_TOPIC = ""
 KAFKA_CONSUMER_REFRESH = 0  # seconds
@@ -49,3 +49,5 @@ LSH_PICKLE = SRC_PATH + "/lib/lsh.pickle"
 # Duplicate question settings
 DUP_QUESTION_MIN_HASH_THRESHOLD = 0
 DUP_QUESTION_MIN_TAG_SIZE = 0
+DUP_QUESTION_IDENTIFY_THRESHOLD = 0
+QUESTION_POPULARITY_THRESHOLD = 0
