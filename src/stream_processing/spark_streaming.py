@@ -37,6 +37,7 @@ def store_dup_cand_redis(tag, rdd):
 def process_question(question, mh, lsh):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
 
+    q_id = question.id
     q_mh = mh.calc_min_hash_signature(question)
     q_lsh = lsh.find_lsh_buckets(q_mh)
 
@@ -46,7 +47,7 @@ def process_question(question, mh, lsh):
         tq_table_size = rdb.zcard("lsh:{0}".format(tag))
 
         if(tq_table_size >= config.DUP_QUESTION_MIN_TAG_SIZE):
-            tq_table = rdb.zrangebyscore("lsh:{0}".format(tag), config.QUESTION_POPULARITY_THRESHOLD, "+inf", withscores=False)
+            tq_table = rdb.zrevrange("lsh:{0}".format(tag), 0, config.MAX_QUESTION_COMPARISON, withscores=False)
             tq = tq_table
             print(tag, tq_table_size)
             # tq_df = ssc.read.json(ssc.parallelize(tq))
