@@ -2,13 +2,14 @@ import threading
 import time
 import kafka
 import os
+import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/config")
-import debug as config
+import config
 
 
 class Consumer(threading.Thread):
     def run(self):
-        consumer = kafka.KafkaConsumer(bootstrap_servers=config.KAFKA_SERVER)
+        consumer = kafka.KafkaConsumer(bootstrap_servers=config.KAFKA_SERVERS)
         consumer.subscribe([config.KAFKA_TOPIC])
 
         if config.LOG_DEBUG:

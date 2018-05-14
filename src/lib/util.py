@@ -1,4 +1,5 @@
 import os
+import sys
 import boto3
 import botocore
 import time
@@ -9,14 +10,16 @@ from functools import reduce
 
 from pyspark.sql import DataFrame
 
-from itertools import chain
-from nltk.corpus import wordnet
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/config")
+import config
 
+global sql_context
 ''' General utility functions used across multiple files '''
 
 
 # Reads all JSON files from an AWS bucket
 def read_all_json_from_bucket(bucket_name):
+    if(config.LOG_DEBUG): print(colored("[BATCH]: Reading S3 files to master dataframe...", "green"))
     return sql_context.read.json("s3a://{0}/*.json*".format(bucket_name))
 
 # Retrieves AWS bucket object

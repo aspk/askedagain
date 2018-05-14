@@ -19,7 +19,7 @@ S3_BUCKET_STREAM = ""
 
 
 # Kafka settings
-KAFKA_SERVER = ""
+KAFKA_SERVERS = "" # ip:port for kafka brokers
 KAFKA_PRODUCER_RATE = 0  # seconds
 KAFKA_TOPIC = ""
 KAFKA_CONSUMER_REFRESH = 0  # seconds

@@ -16,19 +16,10 @@ from pyspark.sql.types import StringType
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/config")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/lib")
-import debug as config
+import config
+import util
 
 os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages com.amazonaws:aws-java-sdk:1.10.34,org.apache.hadoop:hadoop-aws:2.6.0 pyspark-shell'
-
-
-# Reads all JSON files from S3 bucket and returns as a dataframe
-def read_all_from_bucket():
-    bucket_name = config.S3_BUCKET_BATCH_PREPROCESSED
-    if(config.LOG_DEBUG): print(colored("[BATCH]: Reading S3 files to master dataframe...", "green"))
-
-    df = sql_context.read.json("s3a://{0}/*.json*".format(bucket_name))
-    if(config.LOG_DEBUG): print(colored("[BATCH]: Created master dataframe for S3 files...", "green"))
-    return df
 
 # Store LSH similarity data
 def store_spark_mllib_sim_redis(rdd):
@@ -46,7 +37,7 @@ def common_tag(x, y):
 
 
 def run_minhash_lsh():
-    df = read_all_from_bucket()
+    df = util.read_all_json_from_bucket(config.S3_BUCKET_BATCH_PREPROCESSED)
     mh = MinHashLSH(inputCol="text_body_vectorized", outputCol="min_hash", numHashTables=config.LSH_NUM_BANDS)
 
     # Vectorize so we can fit to MinHashLSH model
@@ -69,7 +60,7 @@ def run_minhash_lsh():
         col("datasetB.title").alias("q2_title"),
         col("datasetA.text_body_vectorized").alias("q1_text_body"),
         col("datasetB.text_body_vectorized").alias("q2_text_body"),
-        find_tag("q1.tags", "q2.tags").alias("tag"),
+        find_tag("datasetA.tags", "datasetB.tags").alias("tag"),
         col("jaccard_sim")
     )
 

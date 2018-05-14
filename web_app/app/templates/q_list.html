@@ -16,9 +16,9 @@
         {% for dup_pair in dup_cands %}
           <tr>
             <td> {{ dup_pair["timestamp"] }} </td>
-            <td> {{ dup_pair["tag"] }} </td>
-            <td> {{ dup_pair["q1"] }} <a class="so_link" href="{{ dup_pair['q1_link'] }}">Stack Overflow</a> </td>
-            <td> {{ dup_pair["q2"] }} <a class="so_link" href="{{ dup_pair['q2_link'] }}">Stack Overflow</a> </td>
+            <td> <b> {{ dup_pair["tag"] }} <b> </td>
+            <td> {{ dup_pair["q1_title"] }} <a class="so_link" href="{{ dup_pair['q1_link'] }}">Stack Overflow</a> </td>
+            <td> {{ dup_pair["q2_title"] }} <a class="so_link" href="{{ dup_pair['q2_link'] }}">Stack Overflow</a> </td>
             <td> <button type="button" class="btn btn-xs {{ dup_pair['likelihood_button']}}">{{ dup_pair["likelihood_rating"] }} </button></td>
           </tr>
         {% endfor %}

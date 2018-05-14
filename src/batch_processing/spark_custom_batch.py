@@ -20,16 +20,6 @@ import min_hash
 import locality_sensitive_hash
 
 
-# Reads all JSON files from S3 bucket and returns as a dataframe
-def read_all_from_bucket():
-    bucket_name = config.S3_BUCKET_BATCH_PREPROCESSED
-    if(config.LOG_DEBUG): print(colored("[BATCH]: Reading S3 files to master dataframe...", "green"))
-
-    df = sql_context.read.json("s3a://{0}/*.json*".format(bucket_name))
-    if(config.LOG_DEBUG): print(colored("[BATCH]: Created master dataframe for S3 files...", "green"))
-    return df
-
-
 # Store question data
 def store_lsh_redis(rdd):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
@@ -68,6 +58,7 @@ def find_dup_cands_within_tags(mh, lsh):
     tags = []
     for lsh_key in rdb.sscan_iter("lsh_keys", match="*", count=500):
         tags.append(lsh_key.replace("lsh:", ""))
+    if config.LOG_DEBUG: print(colored("Found {0} total tags.".format(len(tags))), "green")
 
     for tag in tags:
         tq_table = rdb.hgetall("lsh:{0}".format(tag))
@@ -100,7 +91,7 @@ def find_dup_cands_within_tags(mh, lsh):
 
 
 def run_minhash_lsh():
-    df = read_all_from_bucket()
+    df = util.read_all_json_from_bucket(config.S3_BUCKET_BATCH_PREPROCESSED)
     #  Create and save MinHash and LSH if not exist or load them from file
     if(not os.path.isfile(config.MIN_HASH_PICKLE) or not os.path.isfile(config.LSH_PICKLE)):
         mh = min_hash.MinHash(config.MIN_HASH_K_VALUE)
