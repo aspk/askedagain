@@ -33,6 +33,7 @@ Stack Overflow data dump, available as a subset of the [Stack Exchange data dump
 The Stack Overflow dataset is also accessible on [Google Big Query](https://cloud.google.com/bigquery/public-data/stackoverflow).
 
 ## Engineering Challenges
+
 ###Verifying custom MinHashLSH implementation
 ![MinHashLSH_Batch_Benchmark](https://raw.github.com/kellielu/askedagain/master/imgs/MinHashLSH_Batch_Benchmark.jpg)
 
