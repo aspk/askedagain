@@ -34,17 +34,21 @@ The Stack Overflow dataset is also accessible on [Google Big Query](https://clou
 
 ## Engineering Challenges
 
+
 ###Verifying custom MinHashLSH implementation
 ![MinHashLSH_Batch_Benchmark](https://raw.github.com/kellielu/askedagain/master/imgs/MinHashLSH_Batch_Benchmark.jpg)
 
-### Streaming Thoroughput
-![MinHashLSH_Streaming_Benchmark](https://raw.github.com/kellielu/askedagain/master/imgs/MinHashLSH_Streaming_Benchmark.jpg)
-
-### Visualization
-[Demo](https://youtube.com)
 
 ## Conclusions and Further Thoughts
 
+### Incremental online MinHashLSH is generally not very scalable
+* Sorting questions into tags **increased performance by ~4x** on a sizeable subset of Stack Overflow questions in a benchmark batch process, highlighting the performance increase from indexing questions prior to comparison. 
+* Incremental online MinHashLSH **grows in time complexity as dataset size increases.** If the number of comparisons is unregulated and performed naively, the algorithm does not scale well for large datasets even with indexing.
+* Generally, rather than an incremental online model, I believe a **windowed streaming model** (i.e. comparing all streaming questions within a window of time) or a **batch model** are more appropriate uses of the MinHashLSH algorithm for general use cases. 
+
+### On duplicate questions
+* Duplicate questions are **very sparse in the dataset**, as shown by the low number of questions detected in the sizable subset. This suggests that there may be further avenues to reduce pairwise corpus comparisons for this use case. 
+* While pure question deduplication is often a Machine Learning problem where models are trained to detect semantic similarity, MinHashLSH exact similarity (Jaccard similarity) showed **decent accuracy** in identifying near-duplicate questions on questions and their question bodies. 
 
 ## References
 [1] [Deduplication in massive clinical notes dataset](https://arxiv.org/pdf/1704.05617.pdf)
