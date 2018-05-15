@@ -60,8 +60,7 @@ def find_dup_cands_within_tags(mh, lsh):
         tag = lsh_key.replace("lsh:", "")
         tq_table_size = rdb.zcard("lsh:{0}".format(tag))
         if(tq_table_size >= config.DUP_QUESTION_MIN_TAG_SIZE):  # Ignore extremely small tags
-            tq_table = rdb.zrangebyscore("lsh:{0}".format(tag), "-inf", "+inf", withscores=False)
-            tq = tq_table
+            tq = rdb.zrangebyscore("lsh:{0}".format(tag), "-inf", "+inf", withscores=False)
             if config.LOG_DEBUG: print(colored("{0}: {1} question(s)".format(tag, len(tq)), "yellow"))
             tq_df = sql_context.read.json(sc.parallelize(tq))
 

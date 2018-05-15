@@ -34,13 +34,16 @@ The Stack Overflow dataset is also accessible on [Google Big Query](https://clou
 
 ## Engineering Challenges
 
-
 ### Verifying custom MinHashLSH implementation
-
 ![MinHashLSH_Batch_Benchmark](https://raw.github.com/kellielu/askedagain/master/imgs/MinHashLSH_Batch_Benchmark.jpg)
 
+### Streaming throughput/latency
+![MinHashLSH_Streaming_Benchmark](https://raw.github.com/kellielu/askedagain/master/imgs/MinHashLSH_Streaming_Benchmark.jpg)
 
 ## Conclusions and Further Thoughts
+
+### MinHashLSH Model Tuning
+* There is a clear tradeoff between time and accuracy for MinHashLSH in respect to choosing k hash tables for MinHash, b bands for LSH, and bw bandwidth for LSH band widths.
 
 ### Incremental online MinHashLSH is generally not very scalable
 * Sorting questions into tags **increased performance by ~4x** on a sizeable subset of Stack Overflow questions in a benchmark batch process, highlighting the performance increase from indexing questions prior to comparison. 

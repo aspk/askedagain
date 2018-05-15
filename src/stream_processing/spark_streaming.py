@@ -6,11 +6,12 @@ import json
 import datetime
 
 from pyspark import SparkContext
-from pyspark.sql import SparkSession
+# from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
 from pyspark.streaming import StreamingContext
 from pyspark.streaming.kafka import KafkaUtils
-from pyspark.sql.functions import udf
+# from pyspark.sql.functions import udf
+from termcolor import colored
 
 
 os.environ["PYSPARK_SUBMIT_ARGS"] = "--packages org.apache.spark:spark-streaming-kafka-0-8_2.11:2.2.0 pyspark-shell"
@@ -35,35 +36,39 @@ def store_dup_cand_redis(tag, rdd):
 
 
 def process_question(question, mh, lsh):
+    # ss = SparkSession.builder.config(conf=SparkConf())
+
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
 
-    q_id = question.id
+    q_id = question["id"]
     q_mh = mh.calc_min_hash_signature(question)
     q_lsh = lsh.find_lsh_buckets(q_mh)
 
     tags = question["tags"].split("|")
+    max_tag = ""
+    max_tag_table_size = 0
     for tag in tags:
         # Fetch all questions from that tag
         tq_table_size = rdb.zcard("lsh:{0}".format(tag))
+        if(tq_table_size > max_tag_table_size):
+            max_tag = tag
 
-        if(tq_table_size >= config.DUP_QUESTION_MIN_TAG_SIZE):
-            tq_table = rdb.zrevrange("lsh:{0}".format(tag), 0, config.MAX_QUESTION_COMPARISON, withscores=False)
-            tq = tq_table
-            print(tag, tq_table_size)
-            # tq_df = ssc.read.json(ssc.parallelize(tq))
-            # Perform comparison of LSH
-            # find_lsh_sim = udf(lambda tq_lsh: lsh.command_bands_count(tq_lsh, q_lsh))
-            # lsh_sim_tq_df = tq_df.withColumn("lsh_sim", find_lsh_sim(tq_df.q1_min_hash))
-            # lsh_cand_tq_df = lsh_sim_tq_df.filter(lsh_sim_tq_df.lsh_sim >= config.LSH_SIMILARITY_BAND_COUNT)
+    tag = max_tag
 
-            # If comparison above certain threshold, compare MinHash and upoad to Redis
-            # find_mh_js = udf(lambda x, y: mh.jaccard_sim_score(x, y))
-            # mh_cand_df = lsh_cand_tq_df.withColumn("mh_js", find_mh_js(lsh_cand_tq_df.q1_min_hash, lsh_cand_tq_df.q2_min_hash))
-            # cand_df = mh_cand_df.filter(mh_cand_df.mh_js >= config.DUP_QUESTION_MIN_HASH_THRESHOLD)
-            # print(tag, tq_table_size)
-        #     cand_df.foreachPartition(lambda rdd: store_dup_cand_redis(tag, rdd))
-        #     cand_reformatted = (tag, cand.q1_id, cand.q1_title, cand.q2_id, cand.q2_title)
-        #     rdb.zadd("dup_cand", mh_js, cand_reformatted)
+    # Abandon spark parallelization
+    if(max_tag_table_size >= config.DUP_QUESTION_MIN_TAG_SIZE):
+        # Too slow
+        tq_table = rdb.zrevrange("lsh:{0}".format(tag), 0, config.MAX_QUESTION_COMPARISON, withscores=False)
+        tq = [json.loads(tq_entry) for tq_entry in tq_table]
+
+        for entry in tq:
+            lsh_comparison = lsh.common_bands_count(entry["lsh_hash"], q_lsh)
+            if(lsh_comparison > config.LSH_SIMILARITY_BAND_COUNT):
+                mh_comparison = mh.jaccard_sim_score(entry["min_hash"], q_mh)
+                if(mh_comparison > config.DUP_QUESTION_MIN_HASH_THRESHOLD):
+                    cand_reformatted = (tag, q_id, question["title"], entry["id"], entry["title"])
+                    print(colored("Found candidate: {0}".format(cand_reformatted), "cyan"))
+                    rdb.zadd("dup_cand", mh_comparison, cand_reformatted)
 
 
 # Compute MinHash
