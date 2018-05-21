@@ -80,16 +80,16 @@ def preprocess_file(bucket_name, file_name):
     stemmed_data = stop_words_removed_data.withColumn("text_body_stemmed", stem("text_body_stop_words_removed"))
 
     # Shingle resulting body
-    if (config.LOG_DEBUG): print(colored("[PROCESSING] Shingling resulting text body...", "green"))
-    shingle = udf(lambda tokens: get_two_gram_shingles(tokens), ArrayType(ArrayType(StringType())))
-    shingled_data = stemmed_data.withColumn("text_body_shingled", shingle("text_body_stemmed"))
+    # if (config.LOG_DEBUG): print(colored("[PROCESSING] Shingling resulting text body...", "green"))
+    # shingle = udf(lambda tokens: get_two_gram_shingles(tokens), ArrayType(ArrayType(StringType())))
+    # shingled_data = stemmed_data.withColumn("text_body_shingled", shingle("text_body_stemmed"))
 
     # Extract data that we want
-    final_data = shingled_data
+    final_data = stemmed_data
     final_data.registerTempTable("final_data")
 
     preprocessed_data = sql_context.sql(
-        "SELECT title, body, text_body, text_body_shingled, post_type_id, tags, score, comment_count, view_count, id from final_data"
+        "SELECT title, body, creation_date, text_body, text_body_stemmed, post_type_id, tags, score, comment_count, view_count, id from final_data"
     )
 
     # Write to AWS

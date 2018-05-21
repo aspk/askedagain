@@ -6,11 +6,9 @@ import json
 import datetime
 
 from pyspark import SparkContext
-# from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
 from pyspark.streaming import StreamingContext
 from pyspark.streaming.kafka import KafkaUtils
-# from pyspark.sql.functions import udf
 from termcolor import colored
 
 
@@ -24,20 +22,10 @@ from locality_sensitive_hash import LSH
 
 # Converts incoming question, Adds timestamp to incoming question
 def extract_data(data):
-    data["time"] = datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")
+    data["timestamp"] = datetime.datetime.now().strftime("%Y-%m-%d %I:%M %p")
     return data
 
-
-def store_dup_cand_redis(tag, rdd):
-    rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
-    for cand in rdd:
-        cand_reformatted = (tag, cand.q1_id, cand.q1_title, cand.q2_id, cand.q2_title)
-        rdb.zadd("dup_cand", cand.mh_js, cand_reformatted)
-
-
 def process_question(question, mh, lsh):
-    # ss = SparkSession.builder.config(conf=SparkConf())
-
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
 
     q_id = question["id"]
@@ -52,7 +40,7 @@ def process_question(question, mh, lsh):
         tq_table_size = rdb.zcard("lsh:{0}".format(tag))
 
         # Store tag + question in Redis
-        q_json = json.dumps({"id": q_id, "title": question["title"], "min_hash": tuple(q_mh), "lsh_hash": tuple(q_lsh)})
+        q_json = json.dumps({"id": q_id, "title": question["title"], "min_hash": tuple(q_mh), "lsh_hash": tuple(q_lsh), "timestamp": question["timestamp"]})
         rdb.zadd("lsh:{0}".format(tag), question["view_count"], q_json)
         rdb.sadd("lsh_keys", "lsh:{0}".format(tag))
 
@@ -78,7 +66,7 @@ def process_question(question, mh, lsh):
                     mh_comparison = mh.jaccard_sim_score(entry["min_hash"], q_mh)
                     print(colored("MH comparison:{0}".format(mh_comparison), "blue"))
                     if(mh_comparison > config.DUP_QUESTION_MIN_HASH_THRESHOLD):
-                        cand_reformatted = (tag, q_id, question["title"], entry["id"], entry["title"])
+                        cand_reformatted = (tag, q_id, question["title"], entry["id"], entry["title"], question["timestamp"])
                         print(colored("Found candidate: {0}".format(cand_reformatted), "cyan"))
                         rdb.zadd("dup_cand", mh_comparison, cand_reformatted)
 

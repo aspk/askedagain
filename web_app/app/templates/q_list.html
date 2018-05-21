@@ -30,6 +30,8 @@
   $("a.so_link").on("click",function(){
          window.open($(this).attr("href");,"_blank");
      });
+
+  setTimeout(function () { location.reload(1); }, 5000);
 </script>
 
 {% endblock %}

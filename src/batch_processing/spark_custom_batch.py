@@ -26,7 +26,7 @@ def store_lsh_redis(rdd):
     for q in rdd:
         tags = q.tags.split("|")
         for tag in tags:
-            q_json = json.dumps({"id": q.id, "title": q.title, "min_hash": q.min_hash, "lsh_hash": q.lsh_hash})
+            q_json = json.dumps({"id": q.id, "title": q.title, "min_hash": q.min_hash, "lsh_hash": q.lsh_hash, "timestamp": q.creation_date})
             rdb.zadd("lsh:{0}".format(tag), q.view_count, q_json)
             rdb.sadd("lsh_keys", "lsh:{0}".format(tag))
 
@@ -46,7 +46,7 @@ def compute_minhash_lsh(df, mh, lsh):
 def store_dup_cand_redis(tag, rdd):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
     for cand in rdd:
-        cand_reformatted = (tag, cand.q1_id, cand.q1_title, cand.q2_id, cand.q2_title)
+        cand_reformatted = (tag, cand.q1_id, cand.q1_title, cand.q2_id, cand.q2_title, cand.timestamp)
         # Store by time
         rdb.zadd("dup_cand", cand.mh_js, cand_reformatted)
 
@@ -72,6 +72,7 @@ def find_dup_cands_within_tags(mh, lsh):
                 col("q2.min_hash").alias("q2_min_hash"),
                 col("q1.title").alias("q1_title"),
                 col("q2.title").alias("q2_title"),
+                col("q1.timestamp").alias("timestamp"),
                 find_lsh_sim("q1.lsh_hash", "q2.lsh_hash").alias("lsh_sim")
             ).sort("q1_id", "q2_id")
 
