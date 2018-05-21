@@ -41,7 +41,7 @@ def process_question(question, mh, lsh):
     rdb = redis.StrictRedis(config.REDIS_SERVER, port=6379, db=0)
 
     q_id = question["id"]
-    q_mh = mh.calc_min_hash_signature(question)
+    q_mh = mh.calc_min_hash_signature(question["text_body_stemmed"])
     q_lsh = lsh.find_lsh_buckets(q_mh)
 
     tags = question["tags"].split("|")
@@ -50,25 +50,37 @@ def process_question(question, mh, lsh):
     for tag in tags:
         # Fetch all questions from that tag
         tq_table_size = rdb.zcard("lsh:{0}".format(tag))
+
+        # Store tag + question in Redis
+        q_json = json.dumps({"id": q_id, "title": question["title"], "min_hash": tuple(q_mh), "lsh_hash": tuple(q_lsh)})
+        rdb.zadd("lsh:{0}".format(tag), question["view_count"], q_json)
+        rdb.sadd("lsh_keys", "lsh:{0}".format(tag))
+
+        # To find max tag (we're only evaluating this)
         if(tq_table_size > max_tag_table_size):
             max_tag = tag
+            max_tag_table_size = tq_table_size
 
     tag = max_tag
 
     # Abandon spark parallelization
+    print(colored("Tag:{0}, Size: {1}".format(max_tag, max_tag_table_size), "green"))
     if(max_tag_table_size >= config.DUP_QUESTION_MIN_TAG_SIZE):
+        print(colored("Comparing in Tag:{0}".format(tag)), "green")
         # Too slow
         tq_table = rdb.zrevrange("lsh:{0}".format(tag), 0, config.MAX_QUESTION_COMPARISON, withscores=False)
         tq = [json.loads(tq_entry) for tq_entry in tq_table]
 
         for entry in tq:
-            lsh_comparison = lsh.common_bands_count(entry["lsh_hash"], q_lsh)
-            if(lsh_comparison > config.LSH_SIMILARITY_BAND_COUNT):
-                mh_comparison = mh.jaccard_sim_score(entry["min_hash"], q_mh)
-                if(mh_comparison > config.DUP_QUESTION_MIN_HASH_THRESHOLD):
-                    cand_reformatted = (tag, q_id, question["title"], entry["id"], entry["title"])
-                    print(colored("Found candidate: {0}".format(cand_reformatted), "cyan"))
-                    rdb.zadd("dup_cand", mh_comparison, cand_reformatted)
+            if(entry["id"] != q_id):
+                lsh_comparison = lsh.common_bands_count(entry["lsh_hash"], q_lsh)
+                if(lsh_comparison > config.LSH_SIMILARITY_BAND_COUNT):
+                    mh_comparison = mh.jaccard_sim_score(entry["min_hash"], q_mh)
+                    print(colored("MH comparison:{0}".format(mh_comparison), "blue"))
+                    if(mh_comparison > config.DUP_QUESTION_MIN_HASH_THRESHOLD):
+                        cand_reformatted = (tag, q_id, question["title"], entry["id"], entry["title"])
+                        print(colored("Found candidate: {0}".format(cand_reformatted), "cyan"))
+                        rdb.zadd("dup_cand", mh_comparison, cand_reformatted)
 
 
 # Compute MinHash

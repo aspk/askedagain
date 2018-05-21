@@ -28,13 +28,6 @@ def store_spark_mllib_sim_redis(rdd):
             q_pair = (sim.tag, sim.q1_id, sim.q1_title, sim.q2_id, sim.q2_title)
             rdb.zadd("spark_mllib_sim", sim.jaccard_sim, q_pair)
 
-# Returns first common tag between two tag lists, may not be the main tag
-def common_tag(x, y):
-    x_tags = x.split("|")
-    y_tags = y.split("|")
-    intersect = list(set(x_tags) & set(y_tags))
-    return "" if len(intersect) < 1 else intersect[0]
-
 
 def run_minhash_lsh():
     df = util.read_all_json_from_bucket(sql_context, config.S3_BUCKET_BATCH_PREPROCESSED)
@@ -53,7 +46,7 @@ def run_minhash_lsh():
     model.transform(vdf).show()
 
     # Approximate similarity join between pairwise elements
-    find_tag = udf(lambda x, y: common_tag(x, y), StringType())
+    find_tag = udf(lambda x, y: util.common_tag(x, y), StringType())
 
     if(config.LOG_DEBUG): print(colored("[MLLIB BATCH]: Computing approximate similarity join...", "green"))
     sim_join = model.approxSimilarityJoin(vdf, vdf, config.DUP_QUESTION_MIN_HASH_THRESHOLD, distCol="jaccard_sim").select(

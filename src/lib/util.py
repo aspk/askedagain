@@ -14,8 +14,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))) +
 import config
 
 global sql_context
-''' General utility functions used across multiple files '''
+''' General utility functions (not including database functions) used across multiple files '''
 
+# Returns first common tag between two tag lists, may not be the main tag
+def common_tag(x, y):
+    x_tags = x.split("|")
+    y_tags = y.split("|")
+    intersect = list(set(x_tags) & set(y_tags))
+    return "" if len(intersect) < 1 else intersect[0]
 
 # Reads all JSON files from an AWS bucket
 def read_all_json_from_bucket(sql_context, bucket_name):

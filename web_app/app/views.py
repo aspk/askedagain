@@ -18,7 +18,7 @@ rdb = redis.StrictRedis(host=config.REDIS_SERVER, port=6379, db=0)
 def calc_likelihood(sim_score):
     likelihoods = [("Low", "btn-default"), ("Medium", "btn-warning"), ("High", "btn-danger")]
     partition = 0.8 / len(likelihoods)
-    return likelihoods[int(math.floor(sim_score / partition))]
+    return likelihoods[int(math.floor(sim_score / partition)) - 1]
 
 
 def so_link(qid):

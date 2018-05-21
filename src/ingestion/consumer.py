@@ -18,12 +18,12 @@ class Consumer(threading.Thread):
 
 
 def main():
-    thread = Consumer()
-    thread.daemon = True
+    consumer = Consumer()
+    consumer.daemon = True
     while True:
-        if not thread.isAlive():
+        if not consumer.isAlive():
             print("Starting Kafka Consumer...")
-            thread.start()
+            consumer.start()
         else:
             print("Listening for topic: {0}...".format(config.KAFKA_TOPIC))
             time.sleep(config.KAFKA_CONSUMER_REFRESH)

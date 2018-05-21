@@ -32,10 +32,13 @@ AskedAgain was motivated by a desire to create a **real-time duplicate question 
 Stack Overflow data dump, available as a subset of the [Stack Exchange data dump](https://archive.org/details/stackexchange). 
 The Stack Overflow dataset is also accessible on [Google Big Query](https://cloud.google.com/bigquery/public-data/stackoverflow).
 
-## Engineering Challenges
+## Engineering Challenges and Conclusions
 
 ### Verifying custom MinHashLSH implementation
 ![MinHashLSH_Batch_Benchmark](https://raw.github.com/kellielu/askedagain/master/imgs/MinHashLSH_Batch_Benchmark.jpg)
+
+### Tuning MinHashLSH Parameters
+![MinHashLSH_Tuning](https://raw.github.com/kellielu/askedagain/master/imgs/MinHashLSH_Tuning.jpg)
 
 ### Streaming throughput/latency
 ![MinHashLSH_Streaming_Benchmark](https://raw.github.com/kellielu/askedagain/master/imgs/MinHashLSH_Streaming_Benchmark.jpg)
@@ -43,7 +46,7 @@ The Stack Overflow dataset is also accessible on [Google Big Query](https://clou
 ## Conclusions and Further Thoughts
 
 ### MinHashLSH Model Tuning
-* There is a clear tradeoff between time and accuracy for MinHashLSH in respect to choosing k hash tables for MinHash, b bands for LSH, and bw bandwidth for LSH band widths.
+* There is a clear tradeoff between time and accuracy for MinHashLSH in respect to choosing k hashes for MinHash and b bands for LSH.
 
 ### Incremental online MinHashLSH is generally not very scalable
 * Sorting questions into tags **increased performance by ~4x** on a sizeable subset of Stack Overflow questions in a benchmark batch process, highlighting the performance increase from indexing questions prior to comparison. 
@@ -55,4 +58,7 @@ The Stack Overflow dataset is also accessible on [Google Big Query](https://clou
 * While pure question deduplication is often a Machine Learning problem where models are trained to detect semantic similarity, MinHashLSH exact similarity (Jaccard similarity) showed **decent accuracy** in identifying near-duplicate questions on questions and their question bodies. 
 
 ## References
-[1] [Deduplication in massive clinical notes dataset](https://arxiv.org/pdf/1704.05617.pdf)
+[1] [Stanford CS246 Lecture Slides on MinHashLSH (2015)](http://snap.stanford.edu/class/cs246-2015/slides/03-lsh.pdf)
+[2] [Mining of Massive Datasets, Chapter 3 (2010)](http://infolab.stanford.edu/~ullman/mmds/ch3a.pdf)
+[3] [Stanford CS345 Lecture Slides on LSH (2006)](http://infolab.stanford.edu/~ullman/mining/2006/lectureslides/cs345-lsh.pdf)
+

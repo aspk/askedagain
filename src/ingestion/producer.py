@@ -20,17 +20,14 @@ class Producer(threading.Thread):
             json_file = "s3://{0}/{1}".format(config.S3_BUCKET_STREAM, json_obj.key)
             for line in smart_open.smart_open(json_file):
                     if config.LOG_DEBUG: print(line)
+                    time.sleep(config.KAFKA_PRODUCER_RATE)
                     producer.send(config.KAFKA_TOPIC, line)
 
 
 def main():
     producer = Producer()
-    producer.daemon = True
     producer.start()
     print(colored("Starting Kafka Producer: Ingesting at {0} events per second...".format(1.0 / (config.KAFKA_PRODUCER_RATE)), "green"))
-
-    while True:
-        time.sleep(config.KAFKA_PRODUCER_RATE)
 
 
 if __name__ == "__main__":
