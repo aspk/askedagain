@@ -5,7 +5,7 @@
     <table class="table table-striped">
       <thead>
         <tr>
-          <th>Timestamp</th>
+          <!-- <th>Timestamp</th> -->
           <th>Tag</th>
           <th>Potential Duplicate Question</th>
           <th>Matching Question</th>
@@ -15,7 +15,7 @@
       <tbody>
         {% for dup_pair in dup_cands %}
           <tr>
-            <td> {{ dup_pair["timestamp"] }} </td>
+            <!-- <td> {{ dup_pair["timestamp"] }} </td> -->
             <td> <b> {{ dup_pair["tag"] }} <b> </td>
             <td> {{ dup_pair["q1_title"] }} <a class="so_link" href="{{ dup_pair['q1_link'] }}">Stack Overflow</a> </td>
             <td> {{ dup_pair["q2_title"] }} <a class="so_link" href="{{ dup_pair['q2_link'] }}">Stack Overflow</a> </td>

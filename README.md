@@ -41,7 +41,7 @@ The Stack Overflow dataset is also accessible on [Google Big Query](https://clou
 ![MinHashLSH_Tuning](https://raw.github.com/kellielu/askedagain/master/imgs/MinHashLSH_Tuning.jpg)
 
 ### Streaming throughput/latency
-![MinHashLSH_Streaming_Benchmark](https://raw.github.com/kellielu/askedagain/master/imgs/MinHashLSH_Streaming_Benchmark.jpg)
+![MinHashLSH_Streaming_Benchmark](https://raw.github.com/kellielu/askedagain/master/imgs/MinHashLSH_Streaming_Benchmark.png)
 
 ## Conclusions and Further Thoughts
 
@@ -59,6 +59,8 @@ The Stack Overflow dataset is also accessible on [Google Big Query](https://clou
 
 ## References
 [1] [Stanford CS246 Lecture Slides on MinHashLSH (2015)](http://snap.stanford.edu/class/cs246-2015/slides/03-lsh.pdf)
+
 [2] [Mining of Massive Datasets, Chapter 3 (2010)](http://infolab.stanford.edu/~ullman/mmds/ch3a.pdf)
+
 [3] [Stanford CS345 Lecture Slides on LSH (2006)](http://infolab.stanford.edu/~ullman/mining/2006/lectureslides/cs345-lsh.pdf)
 
